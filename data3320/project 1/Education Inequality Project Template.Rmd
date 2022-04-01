@@ -544,7 +544,7 @@ The largest correlation coefficient between a socioeconomic variable and `averag
 $\rightarrow$ Make a scatter plot of `percent_lunch` and `average_act`
 
 
-
+look at pos/neg, form (linear, exponential, etc), strength (correlation coefficient), outliers
 
 
 $\rightarrow$ Make a scatter plot of `median_income` and `average_act`
