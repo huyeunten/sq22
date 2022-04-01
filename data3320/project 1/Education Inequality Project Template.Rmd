@@ -490,7 +490,8 @@ edgap %>%
 
 $\rightarrow$ Describe the shape of the distribution of each variable. 
 
-
+Unemployment: right skewed, unimodel
+% College: symmetrical, unimodel
 
 #### Categorical variables
 
@@ -498,6 +499,11 @@ What states are present in the data set and with what frequency?
 
 $\rightarrow$ First find the states present.
 
+```{r}
+edgap %>%
+  select(state) %>%
+  unique()
+```
 
 $\rightarrow$ Now count the observations by state. Display the results as a bar graph.
 
@@ -511,6 +517,21 @@ $\rightarrow$ Reorder the states by count using `fct_reorder`
 $\rightarrow$ What school types are present in the data set and with what frequency? Present the results as a table and as a bar graph.
 
 
+```{r}
+edgap %>%
+  count(school_type) %>%
+  mutate(proportion = round(n/sum(n), 3))
+```
+
+```{r}
+edgap %>%
+  count(school_type) %>%
+  mutate(school_type = fct_reorder(school_type, n)) %>%
+  ggplot(aes(x = school_type, y = n)) + 
+  geom_col() +
+  coord_flip()
+  labs(x = "School Type", y = "Count")
+```
 
 
 
