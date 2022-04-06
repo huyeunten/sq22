@@ -490,8 +490,12 @@ edgap %>%
 
 $\rightarrow$ Describe the shape of the distribution of each variable. 
 
-Unemployment: right skewed, unimodel
-% College: symmetrical, unimodel
+Unemployment: right skewed, unimodal
+% College: symmetrical, unimodal
+% Married: left skewed, unimodal
+Median income: right skewed, unimodal
+Average ACT: symmetrical, unimodal
+% Lunch: right skewed, unimodal
 
 #### Categorical variables
 
@@ -507,11 +511,26 @@ edgap %>%
 
 $\rightarrow$ Now count the observations by state. Display the results as a bar graph.
 
-
-
+```{r}
+edgap %>%
+  count(state) %>%
+  ggplot(aes(x = state, y = n)) +
+  geom_col() +
+  coord_flip() + 
+  labs(x = "State", y = "Count")
+```
 
 $\rightarrow$ Reorder the states by count using `fct_reorder`
 
+```{r}
+edgap %>%
+  count(state) %>%
+  mutate(state = fct_reorder(state, n)) %>%
+  ggplot(aes(x = state, y = n)) +
+  geom_col() +
+  coord_flip() + 
+  labs(x = "State", y = "Count")
+```
 
 
 $\rightarrow$ What school types are present in the data set and with what frequency? Present the results as a table and as a bar graph.
@@ -543,30 +562,56 @@ The largest correlation coefficient between a socioeconomic variable and `averag
 
 $\rightarrow$ Make a scatter plot of `percent_lunch` and `average_act`
 
-
-look at pos/neg, form (linear, exponential, etc), strength (correlation coefficient), outliers
+```{r}
+ggplot(data = edgap, mapping = aes(x = percent_lunch, y = average_act)) +
+  geom_point() +
+  labs(x = "% Lunch", y = "Average ACT")
+```
 
 
 $\rightarrow$ Make a scatter plot of `median_income` and `average_act`
 
+```{r}
+ggplot(data = edgap, mapping = aes(x = median_income, y = average_act)) +
+  geom_point() +
+  labs(x = "Median Income", y = "Average ACT")
+```
 
 
 $\rightarrow$ `median_income` has a skewed distribution, so make a scatter plot with `median_income` plotted on a log scale.
 
-
-
-
+```{r}
+ggplot(data = edgap, mapping = aes(x = median_income, y = average_act)) +
+  geom_point() +
+  scale_x_log10() +
+  labs(x = "Median Income", y = "Average ACT")
+```
 
 $\rightarrow$ Make a scatter plot of `percent_college` and `average_act`
 
+```{r}
+ggplot(data = edgap, mapping = aes(x = percent_college, y = average_act)) +
+  geom_point() +
+  labs(x = "% College", y = "Average ACT")
+```
 
 
 $\rightarrow$ Make a scatter plot of `percent_married` and `average_act`
 
+```{r}
+ggplot(data = edgap, mapping = aes(x = percent_married, y = average_act)) +
+  geom_point() +
+  labs(x = "% Married", y = "Average ACT")
+```
 
 
 $\rightarrow$ Make a scatter plot of `rate_unemployment` and `average_act`
 
+```{r}
+ggplot(data = edgap, mapping = aes(x = rate_unemployment, y = average_act)) +
+  geom_point() +
+  labs(x = "Unemployment Rate", y = "Average ACT")
+```
 
 
 `rate_unemployment` has a positively skewed distribution, so we should make a scatter plot on a transformed scale. There are values of `rate_unemployment` that are equal to zero,
@@ -574,7 +619,6 @@ $\rightarrow$ Make a scatter plot of `rate_unemployment` and `average_act`
 min(edgap$rate_unemployment, na.rm = TRUE)
 ```
 so we will use a square root transformation, rather than a log transformation.
-
 
 ```{r}
 library(latex2exp) #This library is used for LaTex in the axis labels
@@ -590,6 +634,10 @@ edgap %>%
 #### Numerical summaries
 
 $\rightarrow$ Use the `skim` function to examine the basic numerical summaries for each variable.
+
+```{r}
+edgap %>% select(-id) %>% skim()
+```
 
 
 ## Model
@@ -696,8 +744,11 @@ We want to fit the simple linear regression model
 
 $\rightarrow$ Use the function `lm` to fit a simple linear regression model.
 
-
-
+```{r}
+edgap <- edgap %>%
+  mutate(median_income_10k = median_income/1e4)
+fit_income <- lm(average_act ~ median_income_10k, data = edgap)
+```
 
 
 $\rightarrow$ Use the `summary` function to:
@@ -706,23 +757,44 @@ $\rightarrow$ Use the `summary` function to:
 1. Interpret the coefficients in the model.
 2. Assess the statistical significance of the coefficient on the predictor variable.
 
+```{r}
+summary(fit_income)$coefficients
+```
 
+The intercept is 17.8 and the slope is 0.47. The intercept is the best estimate for the mean ACT score when the median income is 0, but the median income will never equal 0.
+A median income increase of $10,000 is associated with an increase of 0.47 in the estimated mean ACT score. The p-values are 0, which means the data is statistically significant.
 
 $\rightarrow$ Plot the regression line together with the scatter plot
 
+```{r}
+ggplot(edgap, aes(x = median_income_10k, y = average_act)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  labs(x = "Median Income ($10k)", y = "Average ACT")
+```
 
 
 **Assess the accuracy of the fit**
 
 $\rightarrow$ Examine the $R^2$ and the residual standard error
 
+```{r}
+summary(fit_income)$r.squared
+summary(fit_income)$sigma
+```
 
-
+The model explains 21.2% of the variance in ACT scores, and is off by 2.26 points on average.
 
 **Residual plot**
 
 $\rightarrow$ Examine a residual plot to see if we can improve the model through a transformation of the `median_income_10` variable.
 
+```{r}
+ggplot(fit_income, aes(x = median_income_10k, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  labs(x = "Median Income ($10k)", y = "Residuals")
+```
 
 
 **Log transformation**
@@ -731,6 +803,9 @@ $\rightarrow$ Examine a residual plot to see if we can improve the model through
 
 $\rightarrow$ Fit a linear regression model using the log of `median_income_10` as the predictor.
 
+```{r}
+fit_income_log <- lm(average_act ~ log10(median_income_10k), data = edgap)
+```
 
 
 $\rightarrow$ Use the `summary` function to:
@@ -738,21 +813,43 @@ $\rightarrow$ Use the `summary` function to:
 1. Interpret the coefficients in the model.
 2. Assess the statistical significance of the coefficient on the predictor variable.
 
+```{r}
+summary(fit_income_log)$coefficients
+```
 
+The intercept is 16 and the slope is 6.3. The intercept means the predicted average ACT score for an income of 0 ($10k) is 16. The slope means the predicted ACT score is 6.3 points higher for an increase in ten times the median income.
 
 $\rightarrow$ Plot the regression line together with the scatter plot
 
+```{r}
+ggplot(edgap, aes(x = log(median_income_10k), y = average_act)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  labs(x = "Log of Median Income ($10k)", y = "Average ACT")
+```
 
 
 **Assess the accuracy of the fit**
   
 $\rightarrow$ Examine the $R^2$ and the residual standard error
 
+```{r}
+summary(fit_income_log)$r.squared
+summary(fit_income_log)$sigma
+```
 
+The model explains 21.6% of the variance in ACT scores, and the model is off 2.22 points on average.
 
 **Residual plot**
 
 $\rightarrow$ Examine a residual plot to see if we can improve the model through a transformation of the input.
+
+```{r}
+ggplot(fit_income_log, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  labs(x = "Log of Median Income ($10k)", y = "Residuals")
+```
 
 
 #### Percent college
@@ -765,6 +862,9 @@ We want to fit the simple linear regression model
 
 $\rightarrow$ Use the function `lm` to fit a simple linear regression model.
 
+```{r}
+fit_college <- lm(average_act ~ percent_college, data = edgap)
+```
 
 
 $\rightarrow$ Use the `summary` function to 
@@ -772,28 +872,53 @@ $\rightarrow$ Use the `summary` function to
 1. Interpret the coefficients in the model.
 2. Assess the statistical significance of the coefficient on the predictor variable.
 
+```{r}
+summary(fit_college)$coefficients
+```
+
+The intercept is 16.3 and the slope is 7. The intercept is the best estimate for the average ACT score when the percent of college-educated adults is 0. The slope means an increase of 1% in college-educated adults is associated with a 7 point increase in average ACT score.
 
 $\rightarrow$ Plot the regression line together with the scatter plot
 
+```{r}
+ggplot(edgap, aes(x = percent_college, y = average_act)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  labs(x = "Percent College", y = "Average ACT")
+```
 
 
 **Assess the accuracy of the fit**
 
 $\rightarrow$ Examine the $R^2$ and the residual standard error
 
+```{r}
+summary(fit_college)$r.squared
+summary(fit_college)$sigma
+```
 
+The model explains 21% of the variance in the ACT score, and is off by about 2.23 points on average.
 
 **Residual plot**
 
 $\rightarrow$ Examine a residual plot to see if we can improve the model through a transformation of the input variable.
 
+```{r}
+ggplot(fit_college, aes(x = percent_college, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  labs(x = "Percent College", y = "Residuals")
+```
 
 
 $\rightarrow$ Fit and assess a quadratic model
 
-
-
-
+```{r}
+fit_college_quad <- lm(average_act ~ poly(percent_college, 2, raw = TRUE),
+                       data = edgap)
+summary(fit_college_quad)
+```
+The coefficient has a p-value of 0.429, and is not significant. The quadratic model is not better than the linear model.
 
 #### Rate of unemployment
 
@@ -805,6 +930,9 @@ We want to fit the simple linear regression model
 
 $\rightarrow$ Use the function `lm` to fit a simple linear regression model.
 
+```{r}
+fit_unemploy <- lm(average_act ~ rate_unemployment, data = edgap)
+```
 
 
 $\rightarrow$ Use the `summary` function to:
@@ -812,24 +940,68 @@ $\rightarrow$ Use the `summary` function to:
 1. Interpret the coefficients in the model.
 2. Assess the statistical significance of the coefficient on the predictor variable.
 
+```{r}
+summary(fit_unemploy)$coefficients
+```
 
+The intercept is 22.15 and the slope is -19.19. The intercept is the best guess for the average ACT score if the unemployment rate is 0. The slope means an increase of 1% in unemployment rate is associated with a decrease of 19.19 points in the average ACT score. Both p-values are 0, so the relationship is significant.
 
 $\rightarrow$ Plot the regression line together with the scatter plot
 
+```{r}
+ggplot(edgap, aes(x = rate_unemployment, y = average_act)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  labs(x = "Unemployment Rate", y = "Average ACT")
+```
 
 
 **Assess the accuracy of the fit**
 
 $\rightarrow$ Examine the $R^2$ and the residual standard error
 
+```{r}
+summary(fit_unemploy)$r.squared
+summary(fit_unemploy)$sigma
+```
 
+The model explains 18.8% of the variance in ACT scores, and is off by 2.26 points on average.
 
 **Residual plot**
 
 $\rightarrow$ Examine a residual plot to see if we can improve the model.
 
+```{r}
+ggplot(fit_unemploy, aes(x = rate_unemployment, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  labs(x = "Unemployment Rate", y = "Residuals")
+```
+
 
 Try a square root transformation of `rate_unemployment`
+
+```{r}
+fit_unemploy_sqrt <- lm(average_act ~ sqrt(rate_unemployment), data = edgap)
+summary(fit_unemploy_sqrt)
+```
+The square root model is better than the linear model.
+
+```{r}
+ggplot(edgap, aes(x = rate_unemployment, y = average_act)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  geom_smooth(method = "lm", formula = y ~ sqrt(x), color = "red") +
+  labs(x = "Unemployment Rate", y = "Average ACT")
+```
+The two differ for high unemployment rates.
+
+```{r}
+ggplot(fit_unemploy, aes(x = rate_unemployment, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  labs(x = "Unemployment Rate", y = "Residuals")
+```
 
 
 #### Percent married
@@ -842,6 +1014,9 @@ We want to fit the simple linear regression model
 
 $\rightarrow$ Use the function `lm` to fit a simple linear regression model.
 
+```{r}
+fit_married <- lm(average_act ~ percent_married, data = edgap)
+```
 
 
 $\rightarrow$ Use the `summary` function to:
@@ -849,21 +1024,43 @@ $\rightarrow$ Use the `summary` function to:
 1. Interpret the coefficients in the model.
 2. Assess the statistical significance of the coefficient on the predictor variable.
 
+```{r}
+summary(fit_married)$coefficients
+```
+
+The intercept is 16.6 and the slope is 5.8. The intercept is the best guess for the ACT score if the percent married is 0. The slope shows that an increase of 1% in married adults is associated with a 5.8 point increase in the average ACT score. The p-value is 0, so the relationship is significant.
 
 $\rightarrow$ Plot the regression line together with the scatter plot
 
+```{r}
+ggplot(edgap, aes(x = percent_married, y = average_act)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  labs(x = "Percent Married", y = "Average ACT")
+```
 
 
 **Assess the accuracy of the fit**
 
 $\rightarrow$ Examine the $R^2$ and the residual standard error
 
+```{r}
+summary(fit_married)$r.squared
+summary(fit_married)$sigma
+```
 
+The model explains 19.4% of the variance in ACT scores, and is off by 2.25 points on average.
 
 **Residual plot**
 
 $\rightarrow$ Examine a residual plot to see if we can improve the model.
 
+```{r}
+ggplot(fit_married, aes(x = percent_married, y = .resid)) +
+  geom_point() +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  labs(x = "Percent Married", y = "Residuals")
+```
 
 
 ### Model selection
