@@ -1,0 +1,55 @@
+---
+title: "edu extra"
+output: html_document
+date: '2022-04-11'
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+zip <- read_excel("uszips.xlsx")
+school <- read_csv("ccd_sch_029_1617_w_1a_11212017.csv")
+edgap <- read_excel("EdGap_data.xlsx")
+```
+
+```{r}
+school <- school %>%
+  select(NCESSCH, MZIP) %>%
+  rename(zip_code = "MZIP",
+         id = NCESSCH)
+zip <- zip %>%
+  select(zip, population) %>%
+  rename(zip_code = zip) %>%
+  mutate(zip_code = as.character(zip_code))
+edgap <- edgap %>%
+  rename(id = "NCESSCH School ID",
+         rate_unemployment = "CT Unemployment Rate",
+         percent_college = "CT Pct Adults with College Degree",
+         percent_married = "CT Pct Childre In Married Couple Family",
+         median_income = "CT Median Household Income",
+         average_act = "School ACT average (or equivalent if SAT score)",
+         percent_lunch = "School Pct Free and Reduced Lunch"
+        ) %>%
+  mutate(id = as.character(id))
+```
+
+```{r}
+edgap <- edgap %>%
+  left_join(school, "id") %>%
+  left_join(zip, by = "zip_code") %>%
+  mutate(urban_rural = ifelse(population >= 50000, "Urban", "Rural")) %>%
+  filter(is.na(population) == FALSE) %>%
+  filter(is.na(zip_code) == FALSE)
+```
+
+```{r}
+ggplot(data = edgap, mapping = aes(x = percent_lunch, y = average_act, color = urban_rural)) +
+  geom_point(alpha = 0.3)
+```
+```{r}
+ggplot(data = edgap, mapping = aes(x = median_income, y = average_act, color = urban_rural)) +
+  geom_point(alpha = 0.3)
+```
+
+
+1 is urban, 2 is rural

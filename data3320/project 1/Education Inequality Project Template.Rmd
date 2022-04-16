@@ -410,7 +410,7 @@ There are a few suspicious values. The minimum `average_act` is -3.071, but ACT 
 
 ```{r}
 
-#Number of NA ACT scores before conversion
+#Number of ACT scores before conversion
 sum(is.na(edgap$average_act))
 
 #Convert negative scores to NA
@@ -1175,12 +1175,66 @@ edgap_z <- edgap %>%
 
 $\rightarrow$ Fit the model using the transformed variables and examine the coefficients
 
-
-
+```{r}
+fit_transform <- lm(average_act ~ percent_lunch + rate_unemployment + percent_college, data = edgap_z)
+summary(fit_transform)
+```
 
 ## Additional step
 
 $\rightarrow$ In addition to completing the above analyses, you should ask and answer one question about the data set.
+
+Rural: 5765
+Urban: 806
+
+```{r}
+zip <- read_excel("uszips.xlsx")
+zip <- zip %>%
+  select(zip, population) %>%
+  rename(zip_code = zip) %>%
+  mutate(zip_code = as.character(zip_code))
+edgap_2 <- edgap
+edgap_2 <- edgap_2 %>%
+  left_join(zip, by = "zip_code") %>%
+  mutate(urban_rural = ifelse(population >= 50000, "Urban", "Rural")) %>%
+  filter(is.na(population) == FALSE)
+```
+
+```{r}
+ggplot(data = edgap_2, mapping = aes(x = percent_lunch, y = average_act, color = urban_rural)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") + 
+  labs(x = "Percent Lunch", y = "Average ACT", color = "Urban/Rural")
+```
+
+
+
+```{r}
+ggplot(edgap_2, aes(x = log(median_income_10k), y = average_act, color = urban_rural)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(x = "Log of Median Income ($10k)", y = "Average ACT", color = "Urban/Rural")
+```
+
+```{r}
+ggplot(edgap_2, aes(x = rate_unemployment, y = average_act, color = urban_rural)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", formula = y ~ sqrt(x)) +
+  labs(x = "Unemployment Rate", y = "Average ACT", color = "Urban/Rural")
+```
+```{r}
+ggplot(edgap_2, aes(x = percent_married, y = average_act, color = urban_rural)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  labs(x = "Percent Married", y = "Average ACT", color = "Urban/Rural")
+```
+```{r}
+ggplot(edgap_2, aes(x = percent_college, y = average_act, color = urban_rural)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(x = "Percent College", y = "Average ACT", color = "Urban/Rural")
+```
+
 
 
 ## Conclusion
