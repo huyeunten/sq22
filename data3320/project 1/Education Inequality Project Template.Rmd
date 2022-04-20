@@ -1241,7 +1241,8 @@ ggplot(edgap_2, aes(x = percent_college, y = average_act, color = urban_rural)) 
 
 After completing your analyses, you will make your conclusions and communicate your results. Consult Canvas for further directions.
 
-
+percent lunch is the most important, since it correlates directly to the school. the most important are percent lunch, rate unemployment, and percent college.
+write about limitations here
 
 
 
