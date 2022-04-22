@@ -1,5 +1,6 @@
 ---
 title: "Education inequality"
+author: "Haley Uyeunten"
 output: html_document
 ---
 
@@ -12,6 +13,8 @@ We expect a range of school performance on these exams, but is school performanc
 
 $\rightarrow$ Complete the introduction with a description of the problem you are addressing. The introduction should include at least two paragraphs that describe (1) the general problem you are addressing and (2) the specific questions you are asking in this project.
 
+The problem we are addressing is the unequal educational opportunities throughout the US. We looked at whether or not different socioeconomic factors can predict ACT scores, and if so, how the factors affect the scores.
+The specific questions we asked are: Are educational opportunity outcomes in US high schools associated with area socioeconomic factors? Specifically, are ACT and SAT scores in US high schools associated with area socioeconomic factors? How do the area socioeconomic factors predict ACT/SAT scores?
 
 ## Data Collection
 
@@ -106,21 +109,16 @@ library(tidyverse)
 ```
 
 ### Load the data 
-```{r}
-edgap <- read_excel("EdGap_data.xlsx")
-```
+
 
 #### Load the EdGap set
-```{r}
-school_info <- read_csv("ccd_sch_029_1617_w_1a_11212017.csv")
-```
 
 
 $\rightarrow$ Load the data set contained in the file `EdGap_data.xlsx` and name the data frame `edgap`.
 
-
-
-
+```{r}
+edgap <- read_excel("EdGap_data.xlsx")
+```
 
 
 ### Explore the contents of the data set
@@ -128,6 +126,9 @@ $\rightarrow$ Load the data set contained in the file `EdGap_data.xlsx` and name
 
 $\rightarrow$ Look at the first few rows of the data frame. 
 
+```{r}
+head(edgap)
+```
 
 
 
@@ -142,11 +143,16 @@ View(edgap)
 
 $\rightarrow$ Load the data set contained in the file `ccd_sch_029_1617_w_1a_11212017.csv` and name the data frame `school_info`.
 
-
+```{r}
+school_info <- read_csv("ccd_sch_029_1617_w_1a_11212017.csv")
+```
 
 
 $\rightarrow$ Look at the first few rows of the data frame. 
 
+```{r}
+head(school_info)
+```
 
 
 ### Check for a tidy data frame
@@ -215,8 +221,9 @@ school_info <- school_info %>%
 
 $\rightarrow$ Examine the head of the new, smaller data frame
 
-
-
+```{r}
+head(school_info)
+```
 
 $\rightarrow$ Is the data frame tidy?
 
@@ -249,6 +256,10 @@ Importantly, we should be thinking ahead to joining the two data frames based on
 
 $\rightarrow$ View the column names for the EdGap data
 
+```{r}
+names(edgap)
+```
+
 
 To follow best practices, we should
 
@@ -277,6 +288,9 @@ edgap <- edgap %>%
 
 $\rightarrow$ Use the `names` function to see that the names have changed
 
+```{r}
+names(edgap)
+```
 
 
 
@@ -284,6 +298,9 @@ $\rightarrow$ Use the `names` function to see that the names have changed
 
 $\rightarrow$ View the column names for the school information data
 
+```{r}
+names(school_info)
+```
 
 
 The names can be improved for readability. We also have the constraint that we rename `ncessch` to `id` to be consistent with the `edgap` data.
@@ -454,19 +471,16 @@ edgap %>%
   geom_col() +
   labs(x = "School Level", y = "Count")
 ```
-
+There are four school levels: elementary, not reported, other, and high. There are 0% elementary, 0.4% not reported, 8% other, and 91.5% high schools.
 
 $\rightarrow$ Modify the `edgap` data frame to include only the schools that are high schools.
-
 
 ```{r}
 edgap <- edgap %>%
   filter(school_level == "High")
 ```
 
-
 ## Exploratory data analysis
-
 
 We have two main goals when doing exploratory data analysis. The first is that we want to understand the data set more completely. The second goal is to explore relationships between the variables to help guide the modeling process to answer our specific question.
 
@@ -508,6 +522,7 @@ edgap %>%
   select(state) %>%
   unique()
 ```
+There are 20 states represented in the data.
 
 $\rightarrow$ Now count the observations by state. Display the results as a bar graph.
 
@@ -532,7 +547,6 @@ edgap %>%
   labs(x = "State", y = "Count")
 ```
 
-
 $\rightarrow$ What school types are present in the data set and with what frequency? Present the results as a table and as a bar graph.
 
 
@@ -552,7 +566,7 @@ edgap %>%
   labs(x = "School Type", y = "Count")
 ```
 
-
+There are four types of schools: alternative schools (0.1%), career and technical schools (0%), regular schools (99.8%), and special education schools (0%).
 
 #### Focus on relationships with `average_act`
 
@@ -796,6 +810,7 @@ ggplot(fit_income, aes(x = median_income_10k, y = .resid)) +
   labs(x = "Median Income ($10k)", y = "Residuals")
 ```
 
+The residual plot is uneven. Most of the points are clustered on the left side of the graph.
 
 **Log transformation**
 
@@ -851,6 +866,7 @@ ggplot(fit_income_log, aes(x = .fitted, y = .resid)) +
   labs(x = "Log of Median Income ($10k)", y = "Residuals")
 ```
 
+The residual plot has not have any systemic structure, so the analysis is completed.
 
 #### Percent college
 
@@ -909,7 +925,7 @@ ggplot(fit_college, aes(x = percent_college, y = .resid)) +
   geom_smooth(method = "loess", formula = y ~ x) +
   labs(x = "Percent College", y = "Residuals")
 ```
-
+The residual plot does not have a systemic structure.
 
 $\rightarrow$ Fit and assess a quadratic model
 
@@ -977,7 +993,7 @@ ggplot(fit_unemploy, aes(x = rate_unemployment, y = .resid)) +
   geom_smooth(method = "loess", formula = y ~ x) +
   labs(x = "Unemployment Rate", y = "Residuals")
 ```
-
+The residual plot shows the points clustered on the left side of the graph.
 
 Try a square root transformation of `rate_unemployment`
 
@@ -1002,7 +1018,7 @@ ggplot(fit_unemploy, aes(x = rate_unemployment, y = .resid)) +
   geom_smooth(method = "loess", formula = y ~ x) +
   labs(x = "Unemployment Rate", y = "Residuals")
 ```
-
+The residual plot shows less structure.
 
 #### Percent married
 
@@ -1061,7 +1077,7 @@ ggplot(fit_married, aes(x = percent_married, y = .resid)) +
   geom_smooth(method = "loess", formula = y ~ x) +
   labs(x = "Percent Married", y = "Residuals")
 ```
-
+The residual plot has little systemic structure.
 
 ### Model selection
 
@@ -1184,8 +1200,7 @@ summary(fit_transform)
 
 $\rightarrow$ In addition to completing the above analyses, you should ask and answer one question about the data set.
 
-Rural: 5765
-Urban: 806
+The question I asked was whether or not the school being located in an urban or rural area had an effect on the average ACT score. To figure out if schools are in urban or rural areas, I used a data set that contained US zip codes and populations. The US census definition of an urban area is one with a population of at least 50,000 people. I joined the zip code data set with the edgap data set from the previous analysis by zip code. There are 5,765 schools in rural areas and 806 in urban areas.
 
 ```{r}
 zip <- read_excel("uszips.xlsx")
@@ -1207,7 +1222,12 @@ ggplot(data = edgap_2, mapping = aes(x = percent_lunch, y = average_act, color =
   labs(x = "Percent Lunch", y = "Average ACT", color = "Urban/Rural")
 ```
 
+```{r}
+fit_lunch2 <- lm(formula = average_act ~ percent_lunch:urban_rural, data = edgap_2)
+summary(fit_lunch2)
+```
 
+The slope of the rural regression line is -8.244 and the slope of the urban regression line is -8.163. These two slopes are similar to each other. Both p-values are 0, and statistically significant.
 
 ```{r}
 ggplot(edgap_2, aes(x = log(median_income_10k), y = average_act, color = urban_rural)) +
@@ -1215,6 +1235,11 @@ ggplot(edgap_2, aes(x = log(median_income_10k), y = average_act, color = urban_r
   geom_smooth(method = "lm") +
   labs(x = "Log of Median Income ($10k)", y = "Average ACT", color = "Urban/Rural")
 ```
+```{r}
+fit_income2 <- lm(formula = average_act ~ median_income:urban_rural, data = edgap_2)
+summary(fit_income2)
+```
+The slope of the rural line is 5.24e-5 and the slope of the urban line is 3.32e-5. These slopes are also similar to each other. The p-values are also close to 0, and significant.
 
 ```{r}
 ggplot(edgap_2, aes(x = rate_unemployment, y = average_act, color = urban_rural)) +
@@ -1223,26 +1248,41 @@ ggplot(edgap_2, aes(x = rate_unemployment, y = average_act, color = urban_rural)
   labs(x = "Unemployment Rate", y = "Average ACT", color = "Urban/Rural")
 ```
 ```{r}
+fit_unemployment2 <- lm(formula = average_act ~ rate_unemployment:urban_rural, data = edgap_2)
+summary(fit_unemployment2)
+```
+The slope of the rural line is -17.56 and the slope of the urban line is -23.66. These slopes have a greater difference than the previous graphs. The p-values are close to 0, and significant.
+
+```{r}
 ggplot(edgap_2, aes(x = percent_married, y = average_act, color = urban_rural)) +
   geom_point(alpha = 0.3) +
   geom_smooth(method = "lm", formula = y ~ x) +
   labs(x = "Percent Married", y = "Average ACT", color = "Urban/Rural")
 ```
 ```{r}
+fit_married2 <- lm(formula = average_act ~ percent_married:urban_rural, data = edgap_2)
+summary(fit_married2)
+```
+The slope of the rural line is 5.49 and the slope of the rural line is 4.48. These slopes are similar to each other. The p-values are close to 0, and significant.
+
+```{r}
 ggplot(edgap_2, aes(x = percent_college, y = average_act, color = urban_rural)) +
   geom_point(alpha = 0.3) +
   geom_smooth(method = "lm") +
   labs(x = "Percent College", y = "Average ACT", color = "Urban/Rural")
 ```
-
-
+```{r}
+fit_college2 <- lm(formula = average_act ~ percent_college:urban_rural, data = edgap_2)
+summary(fit_college2)
+```
+The slope of the rural line is 6.88 and the slope of the urban line is 5.12. The two slopes are similar to each other. The p-values are significant, since they're close to 0.
 
 ## Conclusion
 
 After completing your analyses, you will make your conclusions and communicate your results. Consult Canvas for further directions.
 
-percent lunch is the most important, since it correlates directly to the school. the most important are percent lunch, rate unemployment, and percent college.
-write about limitations here
+The most important socioeconomic factor in predicting ACT scores is the percentage of students who qualify for free or reduced price lunch. The best model includes three variables: the percent lunch, the rate of unemployment in the area, and the percentage of adults with a college degree. Percent lunch is most likely the most important factor because it correlates directly with the school. All the other factors are based off of the surrounding area of the school. However, the area of a school does not necessarily correlate to the performance of students at the school. Students don't necessarily attend the school in their district, and other factors consider all people in the area, not just the students. The percent lunch variable is also more significant because it represents the same information as other factors, such as median income. Whether or not students qualify for reduced price/free lunch is directly based on their family's income.
 
+For the extra step, the schools being located in urban or rural locations doesn't seem to have an effect on the ACT score. The slopes of each line for each predictor variable are similar to each other. The data set also contained many more schools that were considered rural than urban. This could have been because of the methodology of classifying areas as urban or rural. I used zip codes, which may not have been the best method, since zip codes are based on post office locations. Large urban areas would have lots of zip codes, and each one would have a smaller population.
 
-
+One limitation of the data in answering the question is the data itself. It only includes information for twenty states, which is not reflective of the entire US. It is also limited to public schools, and the average scores per school. The set-up of the question and analysis also assumes the best way of measuring educational opportunity is through test scores. While test scores are generally considered to be good indicators, since they're used for college applications, they may not be the best measure.
