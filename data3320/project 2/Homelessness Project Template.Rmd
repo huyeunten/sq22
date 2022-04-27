@@ -1,0 +1,1086 @@
+---
+title: "Homelessness"
+author: "Haley Uyeunten"
+output: html_document
+editor_options: 
+chunk_output_type: inline
+---
+## Introduction
+
+The 2020 [point-in-time count](https://www.kingcounty.gov/elected/executive/constantine/news/release/2020/July/01-homeless-count.aspx) of people experiencing homelessness for Seattle/King County was 11,751. This represents a 5% increase over the 2019 count and reflects similar trend across many counties in the western U.S. A step towards addressing homelessness is improving our understanding of the relationship between local housing market factors and homelessness. 
+
+The U.S. Department of Housing and Urban Development (HUD) produced a report in 2019 [Market Predictors of Homelessness](https://www.huduser.gov/portal/sites/default/files/pdf/Market-Predictors-of-Homelessness.pdf) that describes a model-based approach to understanding of the relationship between local housing market factors, policies, demographics, climate and homelessness. Our project is motivated by the goals of the HUD study:
+
+"To continue progressing toward the goals of ending and preventing homelessness, we must further our knowledge of the basic community-level determinants of homelessness. The primary objectives of this study are to (1) identify market factors that have established effects on homelessness, (2) construct and evaluate empirical models of community-level homelessness.."
+
+We will investigate whether there are alternative modeling approaches that outperform the models described in the HUD report.
+
+## Data Collection
+
+The data for this project are described in HUD's report [Market Predictors of Homelessness](https://www.huduser.gov/portal/sites/default/files/pdf/Market-Predictors-of-Homelessness.pdf) in the section titled DATA.
+
+I will refer you to this section of the HUD report for a detailed description of the sources of the data and how they were processed.
+
+
+### Load necessary packages
+
+```{r}
+
+#skimr provides a nice summary of a data set
+library(skimr)
+#leaps will be used for model selection
+library(leaps)
+#readxl lets us read Excel files
+library(readxl)
+#GGally has a nice pairs plotting function
+library(GGally)
+#corrplot has nice plots for correlation matrices
+library(corrplot)
+#gridExtra
+library(gridExtra)
+#glmnet is used to fit glm's. It will be used for lasso and ridge regression models.
+library(glmnet)
+#tidymodels has a nice workflow for many models. We will use it for XGBoost
+library(tidymodels)
+#xgboost lets us fit XGBoost models
+library(xgboost)
+#vip is used to visualize the importance of predicts in XGBoost models
+library(vip)
+#tidyverse contains packages we will use for processing and plotting data
+library(tidyverse)
+
+#Set the plotting theme
+theme_set(theme_bw())
+
+```
+
+
+### Examine the data dictionary
+
+The data dictionary `HUD TO3 - 05b Analysis File - Data Dictionary.xlsx` contains descriptions of all variables in the data set.
+
+$\rightarrow$ Load the data dictionary (call it `dictionary`) and view its contents using the function `View`.
+
+```{r}
+dictionary <- read_xlsx("HUD TO3 - 05b Analysis File - Data Dictionary.xlsx")
+view(dictionary)
+```
+
+
+#### What are the sources of data?
+
+$\rightarrow$ Use the dictionary to find the unique sources of data that are not derived from other variables. We will assume that derived variables are either have `Derived` equal to `No` or `Source or Root Variable` starts with the string `See`.
+
+<details>
+  <summary>**Show Coding Hint**</summary>
+
+You can use the `str_detect` function to determine whether a string includes particular string as a component.
+
+</details>  
+
+```{r}
+dictionary %>% 
+  filter(Derived == "No" & str_detect(`Source or Root Variable`, "See") == FALSE) %>%  
+  select(`Source or Root Variable`) %>% 
+  unique()
+```
+
+
+What are the sources of most of the data?
+
+$\rightarrow$ Make a bar graph of the counts of different data sources described in `Source or Root Variable`. Your graph should have the following features:
+
+1. Order the bars in descending order based on the count.
+2. Only include the 10 most common data sources.
+3. Orient the plot so that it is easy to read the labels.
+
+```{r}
+dictionary %>% 
+  count(`Source or Root Variable`) %>% 
+  mutate(`Source or Root Variable` = fct_reorder(`Source or Root Variable`, n)) %>% 
+  head(10) %>% 
+  ggplot(aes(x = `Source or Root Variable`, y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Source or Root Variable", y = "Count")
+```
+
+$\rightarrow$ What are the different Associated Domains of the variables?
+
+```{r}
+dictionary %>%
+  count(`Associated Domain`) %>%
+  mutate(`Associated Domain` = fct_reorder(`Associated Domain`, n)) %>%
+  ggplot(aes(x = `Associated Domain`, y = n/sum(n))) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Associated Doman", y = "Percentage")
+```
+
+
+A big part of this project will be figuring out what variables to include in the analysis.
+
+
+### Data ethics
+
+
+#### Data Science Ethics Checklist
+
+[![Deon badge](https://img.shields.io/badge/ethics%20checklist-deon-brightgreen.svg?style=popout-square)](http://deon.drivendata.org/)
+
+**A. Problem Formulation**
+
+ - [ ] **A.1 Well-Posed Problem**: Is it possible to answer our question with data? Is the problem well-posed?
+
+**B. Data Collection**
+
+ - [ ] **B.1 Informed consent**: If there are human subjects, have they given informed consent, where subjects affirmatively opt-in and have a clear understanding of the data uses to which they consent?
+ - [ ] **B.2 Collection bias**: Have we considered sources of bias that could be introduced during data collection and survey design and taken steps to mitigate those?
+ - [ ] **B.3 Limit PII exposure**: Have we considered ways to minimize exposure of personally identifiable information (PII) for example through anonymization or not collecting information that isn't relevant for analysis?
+ - [ ] **B.4 Downstream bias mitigation**: Have we considered ways to enable testing downstream results for biased outcomes (e.g., collecting data on protected group status like race or gender)?
+
+**C. Data Storage**
+
+ - [ ] **C.1 Data security**: Do we have a plan to protect and secure data (e.g., encryption at rest and in transit, access controls on internal users and third parties, access logs, and up-to-date software)?
+ - [ ] **C.2 Right to be forgotten**: Do we have a mechanism through which an individual can request their personal information be removed?
+ - [ ] **C.3 Data retention plan**: Is there a schedule or plan to delete the data after it is no longer needed?
+
+**D. Analysis**
+
+ - [ ] **D.1 Missing perspectives**: Have we sought to address blindspots in the analysis through engagement with relevant stakeholders (e.g., checking assumptions and discussing implications with affected communities and subject matter experts)?
+ - [ ] **D.2 Dataset bias**: Have we examined the data for possible sources of bias and taken steps to mitigate or address these biases (e.g., stereotype perpetuation, confirmation bias, imbalanced classes, or omitted confounding variables)?
+ - [ ] **D.3 Honest representation**: Are our visualizations, summary statistics, and reports designed to honestly represent the underlying data?
+ - [ ] **D.4 Privacy in analysis**: Have we ensured that data with PII are not used or displayed unless necessary for the analysis?
+ - [ ] **D.5 Auditability**: Is the process of generating the analysis well documented and reproducible if we discover issues in the future?
+
+**E. Modeling**
+
+ - [ ] **E.1 Proxy discrimination**: Have we ensured that the model does not rely on variables or proxies for variables that are unfairly discriminatory?
+ - [ ] **E.2 Fairness across groups**: Have we tested model results for fairness with respect to different affected groups (e.g., tested for disparate error rates)?
+ - [ ] **E.3 Metric selection**: Have we considered the effects of optimizing for our defined metrics and considered additional metrics?
+ - [ ] **E.4 Explainability**: Can we explain in understandable terms a decision the model made in cases where a justification is needed?
+ - [ ] **E.5 Communicate bias**: Have we communicated the shortcomings, limitations, and biases of the model to relevant stakeholders in ways that can be generally understood?
+
+**F. Deployment**
+
+ - [ ] **F.1 Redress**: Have we discussed with our organization a plan for response if users are harmed by the results (e.g., how does the data science team evaluate these cases and update analysis and models to prevent future harm)?
+ - [ ] **F.2 Roll back**: Is there a way to turn off or roll back the model in production if necessary?
+ - [ ] **F.3 Concept drift**: Do we test and monitor for concept drift to ensure the model remains fair over time?
+ - [ ] **F.4 Unintended use**: Have we taken steps to identify and prevent unintended uses and abuse of the model and do we have a plan to monitor these once the model is deployed?
+
+*Data Science Ethics Checklist generated with [deon](http://deon.drivendata.org).*
+
+
+We will discuss these issues in class.
+
+
+## Data Preparation
+
+
+
+### Load the data 
+
+
+The HUD data set is contained in the file `05b_analysis_file_update.csv`.
+
+
+$\rightarrow$ Load the data set contained in the file `05b_analysis_file_update.csv` and name the data frame `df`.
+
+
+<details>
+  <summary>**Coding Hint**</summary>
+
+Use `read_csv`, rather than `read.csv` because `read_csv` loads the data as a [tibble](https://r4ds.had.co.nz/data-import.html).
+
+</details>
+<br>
+
+```{r}
+df <- read_csv("05b_analysis_file_update.csv")
+```
+
+
+### Explore the contents of the data set
+
+
+$\rightarrow$ Look at the first few rows of the data frame. 
+
+```{r}
+head(df)
+```
+
+
+Refer to the data dictionary and the [HUD report]((https://www.huduser.gov/portal/sites/default/files/pdf/Market-Predictors-of-Homelessness.pdf)) to understand what variables are present.
+
+
+#### Explore the columns
+
+What are the variables?
+
+What variable(s) do we want to predict?
+
+What variables seem useful as predictors?
+
+What predictor variables are redundant?
+
+
+It will take a significant amount of work to understand the contents of the data set. We will discuss this in class.
+
+#### Select a subset of columns
+
+Below are suggested variables to keep in the analysis. You may include other variables that might be useful as predictors. Provide an explanation for why you kept the variables.
+
+$\rightarrow$ Construct the list `variable_names` that we will keep for the analysis. 
+
+```{r}
+#Search through data dictionary to find other variables to include
+
+
+variable_names <- c("year", "cocnumber",
+  
+  "pit_tot_hless_pit_hud", "pit_tot_shelt_pit_hud", "pit_tot_unshelt_pit_hud","dem_pop_pop_census",
+  
+  "fhfa_hpi_2009", "ln_hou_mkt_medrent_xt", "hou_mkt_utility_xt", "hou_mkt_burden_own_acs5yr_2017", "hou_mkt_burden_sev_rent_acs_2017", "hou_mkt_rentshare_acs5yr_2017", "hou_mkt_rentvacancy_xt", "hou_mkt_density_dummy", "hou_mkt_evict_count", "hou_mkt_ovrcrowd_acs5yr_2017", "major_city", "suburban",
+           
+           "econ_labor_unemp_rate_BLS", "econ_labor_incineq_acs5yr_2017", "econ_labor_pov_pop_census_share",
+           
+           "hou_pol_hudunit_psh_hud_share", "hou_pol_occhudunit_psh_hud", "hou_mkt_homeage1940_xt",
+           
+           "dem_soc_black_census", "dem_soc_hispanic_census", "dem_soc_asian_census", "dem_soc_pacific_census", "dem_pop_child_census", "dem_pop_senior_census", "dem_pop_female_census", "dem_pop_mig_census", "d_dem_pop_mig_census_share", "dem_soc_singadult_xt", "dem_soc_singparent_xt", "dem_soc_vet_xt", "dem_soc_ed_lessbach_xt", "dem_health_cost_dart",
+           "dem_health_excesdrink_chr",
+           
+           "env_wea_avgtemp_noaa", "env_wea_avgtemp_summer_noaa", "env_wea_precip_noaa", "env_wea_precip_annual_noaa")
+           
+```
+
+$\rightarrow$ Select this subset of variables from the full data set. Call the new data frame `df_small`.
+
+```{r}
+df_small <- df %>%
+  select(all_of(variable_names))
+```
+
+$\rightarrow$ Examine the head of the new, smaller data frame.
+
+```{r}
+head(df_small)
+```
+
+
+$\rightarrow$ Create a new dictionary for this subset of variables and use `View` to examine the contents.
+
+```{r}
+dictionary_small <- dictionary %>%
+  filter(Variable %in% variable_names)
+```
+
+
+How many variables of each Associated Domain are in the smaller data set?
+
+$\rightarrow$ Make a bar graph of the counts of different `Associated Domain`. Your graph should have the following features:
+
+1. Order the bars in descending order based on the count.
+2. Orient the plot so that it is easy to read the labels.
+
+```{r}
+dictionary_small %>%
+  count(`Associated Domain`) %>%
+  mutate(`Associated Domain` = fct_reorder(`Associated Domain`, n)) %>%
+  ggplot(aes(x = `Associated Domain`, y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Associated Domain", y = "Count")
+```
+
+Demographic: 16
+Housing: 10
+Climate: 4
+Safety net: 3
+Economic: 3
+Subgroup: 2
+Identifier: 2
+
+
+### Further exploration of basic properties
+
+
+#### Check for a tidy data frame
+
+In a tidy data set, each column is a variable or id and each row is an observation. It will take some work to determine whether the data set is tidy.
+
+It was difficult to assess whether the full data frame was tidy because of the large number of columns with confusing names. We will do the analysis on the smaller data frame.
+
+
+
+
+$\rightarrow$ How many observations are in the data set?
+
+3008
+
+### Data cleaning
+
+#### Rename variables
+
+I used the data dictionary to create more readable names for the minimal set of variables. You should add in new names for the additional variables you included in the data set.
+
+The data frame with renamed columns is called `df_hud`.
+
+```{r}
+
+#Add your new names to this list. If you add variable names, the order of the variables in the dictionay_small will change and you will need to reassign the numbers.
+
+df_hud <- df_small %>% 
+  rename(coc_number = dictionary_small$Variable[2],
+    total_sheltered = dictionary_small$Variable[3],
+total_unsheltered = dictionary_small$Variable[4],
+total_homeless = dictionary_small$Variable[5],
+total_population = dictionary_small$Variable[6],
+total_female_population = dictionary_small$Variable[7],
+total_population_0_19 = dictionary_small$Variable[8],
+total_population_65_plus = dictionary_small$Variable[9],
+total_black = dictionary_small$Variable[10],
+total_asian = dictionary_small$Variable[11],
+total_pacific_islander = dictionary_small$Variable[12],
+total_latino_hispanic = dictionary_small$Variable[13],
+house_price_index_2009 = dictionary_small$Variable[14],
+rate_unemployment = dictionary_small$Variable[15],
+net_migration = dictionary_small$Variable[16],
+HUD_unit_occupancy_rate = dictionary_small$Variable[17],
+number_eviction = dictionary_small$Variable[18],
+percentage_excessive_drinking = dictionary_small$Variable[19],
+medicare_reimbursements_per_enrollee = dictionary_small$Variable[20],
+average_summer_temperature = dictionary_small$Variable[21],
+total_annual_precipitation = dictionary_small$Variable[22],
+average_Jan_temperature = dictionary_small$Variable[23],
+total_Jan_precipitation = dictionary_small$Variable[24],
+gini_coefficient_2016 = dictionary_small$Variable[25],
+poverty_rate = dictionary_small$Variable[26],
+share_renters_2016 = dictionary_small$Variable[27],
+share_overcrowded_units_2016 = dictionary_small$Variable[28],
+percentage_owners_cost_burden_2016 = dictionary_small$Variable[29],
+percentage_renters_severe_cost_burden_2016 = dictionary_small$Variable[30],
+share_HUD_units = dictionary_small$Variable[31],
+high_housing_density = dictionary_small$Variable[32],
+share_built_before_1940  = dictionary_small$Variable[33],
+utility_costs  = dictionary_small$Variable[34],
+rental_vacancy_rate = dictionary_small$Variable[35],
+proportion_one_person_households  = dictionary_small$Variable[36],
+share_under_18_with_single_parent = dictionary_small$Variable[37],
+share_veteran_status = dictionary_small$Variable[38],
+log_median_rent = dictionary_small$Variable[39],
+migration_4_year_change  = dictionary_small$Variable[40],
+share_no_bachelors = dictionary_small$Variable[41],
+city_or_urban = dictionary_small$Variable[42],
+suburban = dictionary_small$Variable[43]
+)
+
+```
+
+$\rightarrow$ Examine the head of the new data frame with the updated names:
+
+```{r}
+head(df_hud)
+```
+
+
+$\rightarrow$ Display the names of the columns of the new data frame:
+
+
+```{r}
+names(df_hud)
+```
+
+
+### Identify and deal with missing values
+
+$\rightarrow$ How many missing values are there in each column? Give the number of missing values and the percent of values in each column that are missing.
+
+```{r}
+skim(df_hud)
+```
+
+
+We are interested in predicting the number of people experiencing homelessness. So, we will remove the rows where those numbers are missing.
+
+$\rightarrow$ Remove the rows where `total_homeless` is `NA`.
+
+```{r}
+df_hud <- df_hud %>%
+  filter(is.na(total_homeless) == FALSE)
+```
+
+There are some variables that are missing many of their values. 
+
+
+$\rightarrow$ Produce scatter plots of the variables that are missing many values vs. time to see if data are missing from particular years.
+
+```{r}
+ggplot(data = df_hud, aes(x = year, y = log_median_rent)) +
+  geom_point()
+ggplot(data = df_hud, aes(x = year, y = percentage_excessive_drinking)) +
+  geom_point()
+ggplot(data = df_hud, aes(x = year, y = migration_4_year_change)) +
+  geom_point()
+```
+
+Some variables only have data for 2017 (migration_4_year_change and percentage_excessive_drinking).
+
+$\rightarrow$ Produce a data frame with data only from 2017. Call it `df_2017`.
+
+```{r}
+df_2017 <- df_hud %>%
+  filter(year == 2017)
+```
+
+
+$\rightarrow$ Check for missing values in the 2017 data.
+
+```{r}
+skim(df_2017)
+```
+There are no missing values in the 2017 data set.
+
+## Exploratory data analysis
+
+
+We have two main goals when doing exploratory data analysis. The first is that we want to understand the data set more completely. The second goal is to explore relationships between the variables to help guide the modeling process to answer our specific question.
+
+
+### Graphical summaries
+
+
+####  Look at the distributions of the homeless counts
+
+
+$\rightarrow$ Make a histogram of the total number of homeless in 2017.
+
+```{r}
+ggplot(data = df_2017, aes(x = total_homeless)) +
+  geom_histogram(boundary = 0) +
+  labs(x = "Total Homeless", y = "Count")
+```
+
+```{r}
+ggplot(data = df_2017, aes(x = total_homeless)) +
+  geom_histogram(boundary = 0) +
+  coord_cartesian(ylim = c(0, 10)) +
+  labs(x = "Total Homeless", y = "Count")
+```
+
+The data is mostly positively skewed, with lots of data points close to 0. There are also some outliers that are higher numbers, probably for larger cities. 
+
+```{r}
+ggplot(data = df_2017, aes(x = total_population)) +
+  geom_histogram(boundary = 0) +
+  labs(x = "Total Population", y = "Count")
+```
+
+The total population histogram is also positively skewed. Most of the data points are near 0, with some outliers with higher populations.
+
+$\rightarrow$ Make a histogram of the number of sheltered homeless in 2017.
+
+```{r}
+ggplot(data = df_2017, aes(x = total_sheltered)) +
+  geom_histogram(boundary = 0) +
+  labs(x = "Total Sheltered", y = "Count")
+```
+
+
+$\rightarrow$ Make a histogram of the number of unsheltered homeless in 2017.
+
+```{r}
+ggplot(data = df_2017, aes(x = total_unsheltered)) +
+  geom_histogram(boundary = 0) +
+  labs(x = "Total Unsheltered", y = "Count")
+```
+
+
+Converting the total counts to rates relative to population size should remove extreme outliers.
+
+
+$\rightarrow$ Use the `mutate` function to create a new variable `rate_homeless` that is the total number of homeless per 10,000 people in the population and make a histogram of `rate_homeless`.
+
+```{r}
+df_2017 <- df_2017 %>%
+  mutate(rate_homeless = total_homeless / (total_population / 10000))
+ggplot(data = df_2017, aes(x = rate_homeless)) +
+  geom_histogram(boundary = 0) +
+  labs(x = "Homeless Rate per 10000 population", y = "Count")
+```
+
+The distribution is unimodal and positively skewed, though less skewed than the previous total homeless histogram. Most of the points continue to be clustered around the far left side of the graph. There are still outlier points on the right side of the graph.
+
+$\rightarrow$ Compare boxplots of `rate_homeless` and `total_homeless` to visually assess whether outliers are less extreme in `rate_homeless` than in `total_homeless`.
+
+```{r}
+r <- ggplot(data = df_2017) +
+  geom_boxplot(aes(y = rate_homeless))
+t <- ggplot(data = df_2017) +
+  geom_boxplot(aes(y = total_homeless))
+grid.arrange(r, t, nrow = 1)
+```
+
+
+#### Data processing
+
+We will add rates to the data frame. Following the HUD report, we will produce rates per 10,000 people.
+
+$\rightarrow$ Use the `mutate` function to create new variables `rate_homeless`, `rate_sheltered`, and `rate_unsheltered` in the data frame `df_2017` that are the counts per 10,000 people in the population.
+
+```{r}
+df_2017 <- df_2017 %>%
+  mutate(
+    rate_sheltered = total_sheltered / (total_population / 10000),
+    rate_unsheltered = total_unsheltered / (total_population / 10000))
+```
+
+
+We should note that the demographic variables (race, gender, age) are given as total counts. We will also convert these totals to percentages.
+
+
+$\rightarrow$ Use the `mutate` function to create new demographics variables in the data frame `df_2017` that are percentages of the total population.
+
+```{r}
+df_2017 <- df_2017 %>%
+  mutate(
+    percent_black = total_black / total_population,
+    percent_asian = total_asian / total_population,
+    percent_latino_hispanic = total_latino_hispanic / total_population,
+    percent_pacific_islander = total_pacific_islander / total_population,
+    percent_0_19 = total_population_0_19 / total_population,
+    percent_65_plus = total_population_65_plus / total_population,
+    percent_female = total_female_population / total_population
+  )
+```
+
+
+#### Basic summary
+
+$\rightarrow$ How many people were experiencing homelessness in 2017? How many were sheltered and how many were unsheltered?
+
+```{r}
+df_2017 %>%
+  select(total_homeless, total_sheltered, total_unsheltered) %>%
+  colSums()
+```
+
+548312 homeless, 359669 sheltered, 188643 unsheltered
+
+$\rightarrow$ What are the minimum, maximum, mean, and median number of total, sheltered, and unsheltered homeless in 2017?
+
+```{r}
+df_2017 %>%
+  select(total_homeless, total_sheltered, total_unsheltered) %>%
+  summary()
+```
+Total homeless minimum: 10
+Total homeless maximum: 76501
+Total homeless mean: 1466.1
+Total homeless median: 567.5
+
+Total sheltered minimum: 5
+Total sheltered maximum: 72565
+Total sheltered mean: 961.7
+Total sheltered median: 373
+
+Total unsheltered minimum: 0
+Total unsheltered maximum: 42828
+Total unsheltered mean: 504.4
+Total unsheltered median: 109.5
+
+### Correlations between numerical variables
+
+
+$\rightarrow$ Plot the correlation coefficients between all pairs of numerical variables using the `corrplot` function.
+
+```{r}
+df_2017 %>%
+  select_if(is.numeric) %>%
+  select(-"year") %>%
+  cor(use = "pairwise.complete.obs") %>%
+  corrplot(tl.cex = 0.5, type = "lower")
+```
+
+
+There are some variables that are highly correlated with the rate of homeless. Some are obvious, such as the rate of sheltered homeless. Other correlations show the existence of environmental variables, such as the share of overcrowded units, that are correlated with the rate of homeless.
+
+
+Note the high correlation among subsets of the input variables. We will want to remove redundant variables or make a transformation of the input variables to deal with the correlation before constructing a model.
+
+
+Next, we will find the variables with the highest correlation with `rate_homeless`. First, create the correlation matrix. Then examine the row with `rate_homeless` to find its correlation with the other variables.
+
+```{r}
+
+M <- df_2017 %>% 
+  select_if(is.numeric) %>% 
+  cor(use = "pairwise.complete.obs")
+
+
+round(M["rate_homeless",],2)
+
+```
+
+
+Find the variables where the absolute value of the correlation with `rate_homeless` is greater than 0.3.
+
+```{r}
+
+M["rate_homeless",abs(M["rate_homeless",]) > 0.3 & is.na(M["rate_homeless",]) == FALSE] %>% 
+  abs() %>%
+  round(2) %>% 
+  sort(decreasing = T)
+
+```
+
+
+$\rightarrow$ Make a pairs plot with a subset of the variables with the highest magnitude correlations. Select a small enough group so that you can see the panels. Do not include variables that you will not use as predictors (e.g. `rate_unsheltered`, any demographic totals)
+
+```{r}
+df_2017 %>% 
+  select("rate_homeless", "house_price_index_2009", "log_median_rent", "utility_costs", "percentage_owners_cost_burden_2016", "percentage_renters_severe_cost_burden_2016", "share_renters_2016") %>% 
+  filter("coc_number" != "CA-613") %>% 
+  ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
+```
+
+
+$\rightarrow$ Create additional plots to further understand the data set. Describe your findings.
+
+```{r}
+df_2017 %>% 
+  select("rate_homeless", "rental_vacancy_rate", "high_housing_density", "number_eviction", "share_overcrowded_units_2016", "city_or_urban", "suburban") %>%
+  filter("coc_number" != "CA-613") %>% 
+  ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
+```
+
+```{r}
+df_2017 %>% 
+  select("rate_homeless", "rate_unemployment", "gini_coefficient_2016", "poverty_rate", "share_HUD_units", "HUD_unit_occupancy_rate", "share_built_before_1940") %>% 
+  filter("coc_number" != "CA-613") %>% 
+  ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
+```
+
+```{r}
+df_2017 %>% 
+  select("rate_homeless", "net_migration", "migration_4_year_change", "proportion_one_person_households", "share_under_18_with_single_parent", "share_veteran_status", "share_no_bachelors") %>% 
+  filter("coc_number" != "CA-613") %>% 
+  ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
+```
+
+```{r}
+df_2017 %>% 
+  select("rate_homeless", "medicare_reimbursements_per_enrollee", "percentage_excessive_drinking", "average_Jan_temperature", "average_summer_temperature", "total_Jan_precipitation", "total_annual_precipitation") %>% 
+  filter("coc_number" != "CA-613") %>% 
+  ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
+```
+
+The homeless rate seems to have the strongest linear relationship with share_renters_2016 (0.477), share_overcrowded_units_2016 (0.424), gini_coefficient_2016 (0.312) and total_Jan_precipitation (0.372).
+
+## Model
+
+
+We will multiple approaches to construct models that predict `rate_homeless`:
+
+1. Use statistical significance to create a multiple linear regression model.
+2. Best subset selection for a multiple linear regression model.
+3. Lasso
+4. Ridge regression
+5. XGBoost
+
+To compare the different approaches, we will use a training and testing split of the data set.
+
+### Set up the data set for training and testing
+
+
+#### Remove some variables
+
+There are several variables that we do not want to include as predictors. We want to remove demographic totals, the year, the CoC number, and the other homeless rates that we are not predicting. You may have additional variables to remove to create the data set that contains only the response variable and the predictors that you want to use.
+
+```{r}
+
+variable_remove = c("total_homeless", "total_sheltered", "total_unsheltered", "total_black", "total_latino_hispanic", "total_asian", "total_pacific_islander", "total_population_0_19", "total_population_65_plus", "total_female_population", "year", "coc_number", "total_population", "rate_unsheltered", "rate_sheltered")
+
+df_2017 <- df_2017 %>% 
+  select(-all_of(variable_remove))
+
+names(df_2017)
+
+```
+
+These variables are removed because they do not work as predictor variables for the homelessness rate. Instead, many of them are directly related, such as the total_homeless, rate_unsheltered, and rate_sheltered. Because of the different population sizes in various cities, we want to use rates instead of total numbers, which is why all of those variables are removed from the data set.
+
+$\rightarrow$ How many input variables remain in the data set that you can use as predictors?
+
+```{r}
+skim(df_2017)
+```
+
+There are 37 variables that can be used as predictors, and 374 observations. This can make it difficult to pick the best model, since it would be easier to overfit the data. The model could be accurate to the small data set, but not be able to predict any new data.
+
+#### Get train and test splits
+
+
+We will split the data into training and testing sets, with 85% of the data kept for training.   
+
+```{r}
+
+#Do the split. Keep 85% for training. Use stratified sampling based on rate_homeless
+split <- initial_split(df_model, prop = 0.85, strata = rate_homeless)
+
+#Extract the training and testing splits
+df_train <- training(split)
+df_test <- testing(split)
+
+```
+
+
+$\rightarrow$ Check the sizes of the training and testing splits
+
+```{r}
+skim(df_train)
+skim(df_test)
+```
+
+There are 316 data entries in the training data and 58 in the testing data.
+
+
+### Full regression model
+
+
+#### Fit the model on the training data
+
+$\rightarrow$ Use the training data to fit a multiple linear regression model to predict `rate_homeless` using all possible predictor variables.
+
+```{r}
+fit_all <- lm(rate_homeless ~ ., data = df_2017)
+summary(fit_all)
+```
+
+
+$\rightarrow$ Examine the summary of the fit. Which predictors have statistically significant coefficients? Do the signs of the coefficients make sense?
+
+
+
+
+We should also do a qualitative assessment of the fit to the training data.
+
+$\rightarrow$ Plot the residuals to look for systematic patterns of residuals that might suggest a new model.
+
+
+
+#### Assess the model on the testing data
+
+$\rightarrow$ Use the model to predict the homeless rate in the testing data.
+
+
+$\rightarrow$ Make a scatter plot to compare the actual value and the predicted value of `rate_homeless`.
+
+
+
+$\rightarrow$ Compute the RMSE
+
+
+$\rightarrow$ Repeat the regression analysis, but using a different random seed before the train-test split. Does the train-test split affect the significance of the coefficients and their values?
+
+
+### Subset selection
+
+The full model contains too many predictors, so we will use subset selection on the training data to find a smaller number of predictors.
+
+
+$\rightarrow$ Get the number of variables in the data set that will be used as predictors. This will be used to set the subset size.
+
+
+
+$\rightarrow$ Do best subset selection on the training data. Set the maximum number of variables to equal the number of predictor variables in the data set.
+
+
+
+
+
+
+$\rightarrow$ Get the summary. We will use this after performing cross validation to determine the best model.
+
+
+
+#### Cross validation
+
+$\rightarrow$ Use 10-fold cross validation on the training data to determine the best subset of predictors in the model.
+
+
+
+
+
+$\rightarrow$ Plot the assessment measures vs. the number of predictors
+
+
+
+$\rightarrow$ What are the coefficients of the best model according to different measures?
+
+
+
+
+#### Assess the performance of the model on the testing data
+
+Use the model to predict the homeless rate in the testing data. We will use the best BIC model as an example, but you should compare the performance of all models.
+
+
+$\rightarrow$ Select the variables that are indicated by the best subset selection criterion that you choose (Cp, BIC, Adjusted R-squared, or CV) and produce a new, smaller data frame.
+
+
+
+
+$\rightarrow$ Fit the model using this subset. The `lm` object will help us to make predictions easily.
+
+
+
+
+$\rightarrow$ Generate predictions of the ACT score in the testing data.
+
+
+
+$\rightarrow$ Make a scatter plot to compare the actual value and the predicted value of `rate_homeless`.
+
+
+
+$\rightarrow$ Compute the RMSE. How does the RMSE compare to the error for the full model?
+
+
+
+
+### Lasso
+
+
+The lasso is another approach to producing a linear regression model with a subset of the available predictors. The lasso works by finding coefficients $\boldsymbol{\beta}$ that minimize the cost function:
+
+$$C(\boldsymbol{\beta}) = \sum_{i=1}^n(y_i - \beta_{0} - \sum_{j=1}^p\beta_{j}x_{ij})^2 + \lambda \sum_{j=1}^p|\beta_{j}| = \text{RSS} + \lambda \sum_{j=1}^p|\beta_{j}|$$
+
+where $\lambda \geq 0$ is a tuning parameter (or hyperparameter).
+
+$\rightarrow$ Prepare the data by creating a model matrix `x_train` from the training data. Create the model matrix using `model.matrix` so that it includes the training data for all predictors, but does not include a column for the intercept. Also create the training response data `y_train`.
+
+
+
+
+$\rightarrow$ Use cross-validation to find the best hyperparameter $\lambda$
+
+
+
+$\rightarrow$ Show error as a function of the hyperparameter $\lambda$ and its best value.
+
+
+
+$\rightarrow$ Fit the lasso with the best $\lambda$ using the function `glmnet`.
+
+
+
+$\rightarrow$ Examine the coefficients. Which variables have non-zero coefficients?
+
+
+
+
+
+#### Look at prediction error
+
+
+$\rightarrow$ Use the model to predict the homeless rate in the testing data.
+
+
+
+
+$\rightarrow$ Make a scatter plot to compare the actual value and the predicted value of `rate_homeless`.
+
+
+
+$\rightarrow$ Compute the RMSE. How does it compare to the other models?
+
+
+
+### Ridge regression
+
+
+Ridge regression is another approach to model building 
+
+Ridge regression works by finding coefficients $\boldsymbol{\beta}$ that minimize the cost function:
+
+$$C(\boldsymbol{\beta}) = \sum_{i=1}^n(y_i - \beta_{0} - \sum_{j=1}^p\beta_{j}x_{ij})^2 + \lambda \sum_{j=1}^p\beta_{j}^2 = \text{RSS} + \lambda \sum_{j=1}^p\beta_{j}^2$$
+
+In contrast to the lasso, ridge regression will not reduce the number of non-zero coefficients in the model. Ridge regression will shrink the coefficients, which helps to prevent overfitting of the training data.
+
+
+The fitting procedure for the ridge regression model mirrors the lasso approach, only changing the parameter $\alpha$ to 0 in the `cv.glmnet` and `glmnet` functions.
+
+
+$\rightarrow$ Fit and assess a ridge regression model. How does it compare to the other models?
+
+
+
+
+
+### XGBoost
+
+XGBoost is short for eXtreme Gradient Boosting.
+
+We are going to use the `tidymodels` package to fit the XGBoost model.
+
+
+#### Set up the model
+
+The model will be a boosted tree model, so we start by specifying the features of a `boost_tree` model. The`boost_tree` creates a specification of a model, but does not fit the model.
+
+```{r}
+
+xgb_spec <- boost_tree(
+  mode = "regression",  #We are solving a regression problem
+  trees = 1000, 
+  tree_depth = tune(),  # tune() says that we will specify this parameter later
+  min_n = tune(), 
+  loss_reduction = tune(),                     
+  sample_size = tune(), 
+  mtry = tune(),         
+  learn_rate = tune(),                         
+  ) %>% 
+  set_engine("xgboost", objective = "reg:squarederror") ## We will use xgboost to fit the model and try to minimize the squared error
+
+xgb_spec
+
+```
+
+Create a workflow that specifies the model formula and the model type. We are still setting up the model; this does not fit the model.
+
+```{r}
+
+xgb_wf <- workflow() %>%
+  add_formula(rate_homeless ~ .) %>%
+  add_model(xgb_spec)
+
+xgb_wf
+```
+
+
+#### Fit the model
+
+We need to fit all of the parameters that we specified as `tune()`. We will specify the parameter grid using the functions `grid_latin_hypercube`:
+
+```{r}
+xgb_grid <- grid_latin_hypercube(
+  tree_depth(),
+  min_n(),
+  loss_reduction(),
+  sample_size = sample_prop(),
+  finalize(mtry(), df_train),
+  learn_rate(),
+  size = 30  #Create 30 sets of the 6 parameters
+)
+```
+
+
+Create folds for cross-validation. 
+
+```{r}
+
+folds <- vfold_cv(df_train)
+
+#Can also try using stratified sampling based on rate_homeless
+#folds <- vfold_cv(df_train, strata = rate_homeless)
+
+```
+
+
+Do the parameter fitting. This will take some time.
+
+```{r}
+
+xgb_res <- tune_grid(
+  xgb_wf,              #The workflow
+  resamples = folds,   #The training data split into folds
+  grid = xgb_grid,     #The grid of parameters to fit
+  control = control_grid(save_pred = TRUE)
+)
+
+xgb_res
+```
+
+Set up the final workflow with the best model parameters.
+
+```{r}
+
+#Get the best model, according to RMSE
+best_rmse <- select_best(xgb_res, "rmse")
+
+#Update the workflow with the best parameters
+final_xgb <- finalize_workflow(
+  xgb_wf,
+  best_rmse
+)
+
+final_xgb
+```
+
+
+#### Prediction
+
+
+Fit the final model to the training data and predict the test data.
+```{r}
+
+final_res <- last_fit(final_xgb, split)
+
+```
+
+
+Show the RMSE. Compare the result to the test RMSE for the other models.
+
+```{r}
+collect_metrics(final_res)
+```
+
+Plot the ACT scores and the prediction
+
+```{r}
+
+plot(final_res$.predictions[[1]]$rate_homeless,final_res$.predictions[[1]]$.pred, pch = 20, xlab = "Homeless rate", ylab = "Predicted homeless rate")
+
+```
+
+
+#### Relative importance of predictors
+
+Look at which predictors are most important in the model
+
+```{r}
+
+final_xgb %>%
+  fit(data = df_train) %>%
+  pull_workflow_fit() %>%
+  vip(geom = "col")
+
+```
+
+
+
+### Compare models
+
+You used several methods to construct a model
+
+1. Use statistical significance to create a multiple linear regression model.
+2. Best subset selection for a multiple linear regression model.
+3. Lasso
+4. Ridge regression
+5. XGBoost
+
+Compare the performance of the models. 
+
+
+
+## Additional step
+
+In addition to completing the above analyses, you should perform any revisions to the models that you think might improve their performance. Consult Canvas for further directions.
+
+
+## Conclusion
+
+After completing your analyses, you will make your conclusions and communicate your results. Consult Canvas for further directions.
+
+
