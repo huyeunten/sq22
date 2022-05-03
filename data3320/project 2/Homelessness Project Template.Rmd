@@ -700,9 +700,9 @@ There are 37 variables that can be used as predictors, and 374 observations. Thi
 We will split the data into training and testing sets, with 85% of the data kept for training.   
 
 ```{r}
-
+set.seed(20)
 #Do the split. Keep 85% for training. Use stratified sampling based on rate_homeless
-split <- initial_split(df_model, prop = 0.85, strata = rate_homeless)
+split <- initial_split(df_2017, prop = 0.85, strata = rate_homeless)
 
 #Extract the training and testing splits
 df_train <- training(split)
@@ -781,7 +781,9 @@ The RMSE is 9.56.
 $\rightarrow$ Repeat the regression analysis, but using a different random seed before the train-test split. Does the train-test split affect the significance of the coefficients and their values?
 
 ```{r}
-split_80 <- initial_split(df_model, prop = 0.80, strata = rate_homeless)
+set.seed(0)
+
+split_80 <- initial_split(df_2017, prop = 0.80, strata = rate_homeless)
 
 #Extract the training and testing splits
 df_train_80 <- training(split_80)
