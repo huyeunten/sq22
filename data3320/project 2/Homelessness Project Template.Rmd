@@ -639,7 +639,7 @@ $\rightarrow$ Make a pairs plot with a subset of the variables with the highest 
 
 ```{r}
 df_2017 %>% 
-  select("rate_homeless", "house_price_index_2009", "log_median_rent", "utility_costs", "percentage_owners_cost_burden_2016", "percentage_renters_severe_cost_burden_2016", "share_renters_2016") %>% 
+  select("rate_homeless", "share_renters_2016", "share_overcrowded_units_2016", "total_Jan_precipitation", "house_price_index_2009", "percentage_owners_cost_burden_2016", "log_median_rent", "utility_costs", "gini_coefficient_2016") %>% 
   filter("coc_number" != "CA-613") %>% 
   ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
 ```
@@ -647,35 +647,11 @@ df_2017 %>%
 
 $\rightarrow$ Create additional plots to further understand the data set. Describe your findings.
 
-```{r}
-df_2017 %>% 
-  select("rate_homeless", "rental_vacancy_rate", "high_housing_density", "number_eviction", "share_overcrowded_units_2016", "city_or_urban", "suburban") %>%
-  filter("coc_number" != "CA-613") %>% 
-  ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
-```
+#DO THIS!!
 
 ```{r}
-df_2017 %>% 
-  select("rate_homeless", "rate_unemployment", "gini_coefficient_2016", "poverty_rate", "share_HUD_units", "HUD_unit_occupancy_rate", "share_built_before_1940") %>% 
-  filter("coc_number" != "CA-613") %>% 
-  ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
-```
 
-```{r}
-df_2017 %>% 
-  select("rate_homeless", "net_migration", "migration_4_year_change", "proportion_one_person_households", "share_under_18_with_single_parent", "share_veteran_status", "share_no_bachelors") %>% 
-  filter("coc_number" != "CA-613") %>% 
-  ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
 ```
-
-```{r}
-df_2017 %>% 
-  select("rate_homeless", "medicare_reimbursements_per_enrollee", "percentage_excessive_drinking", "average_Jan_temperature", "average_summer_temperature", "total_Jan_precipitation", "total_annual_precipitation") %>% 
-  filter("coc_number" != "CA-613") %>% 
-  ggpairs(progress = FALSE, lower = list(continuous = "cor"), upper = list(continuous = "points"))
-```
-
-The homeless rate seems to have the strongest linear relationship with share_renters_2016 (0.477), share_overcrowded_units_2016 (0.424), gini_coefficient_2016 (0.312) and total_Jan_precipitation (0.372).
 
 ## Model
 
@@ -753,36 +729,71 @@ There are 316 data entries in the training data and 58 in the testing data.
 $\rightarrow$ Use the training data to fit a multiple linear regression model to predict `rate_homeless` using all possible predictor variables.
 
 ```{r}
-fit_all <- lm(rate_homeless ~ ., data = df_2017)
-summary(fit_all)
+fit_all <- lm(rate_homeless ~ ., data = df_train)
 ```
 
 
 $\rightarrow$ Examine the summary of the fit. Which predictors have statistically significant coefficients? Do the signs of the coefficients make sense?
 
-
+```{r}
+summary(fit_all)
+```
+The most significant variables based on the p-values are total_Jan_precipitation, proportion_one_person_households, migration_4_year_change, and log_median_rent.
 
 
 We should also do a qualitative assessment of the fit to the training data.
 
 $\rightarrow$ Plot the residuals to look for systematic patterns of residuals that might suggest a new model.
 
+```{r}
+plot(fit_all, 1)
+```
 
+The residual model has a systemic pattern where many more data points are clustered on the left. The linear regression with all variables is not the best model to fit the data.
 
 #### Assess the model on the testing data
 
 $\rightarrow$ Use the model to predict the homeless rate in the testing data.
 
+```{r}
+lm_predict <- predict(fit_all, df_test)
+```
+
 
 $\rightarrow$ Make a scatter plot to compare the actual value and the predicted value of `rate_homeless`.
 
-
+```{r}
+plot(df_test$rate_homeless, lm_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+```
+#WRITE SOMETHING HERE IDK WHAT THIS MEANS!
 
 $\rightarrow$ Compute the RMSE
 
+```{r}
+rmse <- (df_test$rate_homeless - lm_predict)^2 %>%
+  mean() %>%
+  sqrt()
+rmse
+```
+The RMSE is 9.56.
+#WHAT DOES THIS MEAN??!
 
 $\rightarrow$ Repeat the regression analysis, but using a different random seed before the train-test split. Does the train-test split affect the significance of the coefficients and their values?
 
+```{r}
+split_80 <- initial_split(df_model, prop = 0.80, strata = rate_homeless)
+
+#Extract the training and testing splits
+df_train_80 <- training(split_80)
+df_test_80 <- testing(split_80)
+
+fit_80 <- lm(rate_homeless ~ ., data = df_train_80)
+summary(fit_80)
+plot(fit_80, 1)
+predict_80 <- predict(fit_80, df_test_80)
+plot(df_test_80$rate_homeless, predict_80, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+```
+#CHECK SIGNIFICANT VALUES! AND WRITE!
 
 ### Subset selection
 
@@ -791,63 +802,175 @@ The full model contains too many predictors, so we will use subset selection on 
 
 $\rightarrow$ Get the number of variables in the data set that will be used as predictors. This will be used to set the subset size.
 
-
+```{r}
+n <- ncol(df_train) - 1
+n
+```
+There are 37 variables in the data set that will be used as predictors.
 
 $\rightarrow$ Do best subset selection on the training data. Set the maximum number of variables to equal the number of predictor variables in the data set.
 
-
-
+```{r}
+regfit_all <- regsubsets(rate_homeless ~ ., data = df_train, nvmax = n)
+```
 
 
 
 $\rightarrow$ Get the summary. We will use this after performing cross validation to determine the best model.
 
+```{r}
+regfit_summary <- summary(regfit_all)
+```
 
 
 #### Cross validation
 
 $\rightarrow$ Use 10-fold cross validation on the training data to determine the best subset of predictors in the model.
 
-
-
-
+```{r}
+# row <- nrow(df_train)
+# 
+# num_fold <- 10
+# 
+# set.seed(1)
+# 
+# folds <- sample(1:num_fold, row, replace = TRUE)
+# error <- matrix(NA, num_fold, n, dimnames = list(NULL, paste(1:n)))
+# 
+# for (i in 1:num_fold) {
+#   reg_fit_best <- regsubsets(rate_homeless ~ ., data = df_train[folds != j,], nvmax = n)
+#   test_mat <- model.matrix(rate_homeless ~ ., data = df_train[folds == j,])
+#   for (j in 1:n) {
+#     c <- coef(reg_fit_best, id = j)
+#     p <- test_mat[,names(c)] %*% c
+#     error[i, j] <- mean((df_train$rate_homeless[folds == i] - p)^2)
+#   }
+# }
+# 
+# error_mean <- apply(error, 2, mean)
+```
 
 $\rightarrow$ Plot the assessment measures vs. the number of predictors
 
+```{r}
+par(mfrow = c(2, 2))
+
+ind_cp <- which.min(regfit_summary$cp)
+plot(regfit_summary$cp, type = "b", xlab = "Number of Variables", ylab = "Cp", main = toString(ind_cp))
+points(ind_cp, regfit_summary$cp[ind_cp], col = "red", pch = 20)
+
+ind_bic = which.min(regfit_summary$bic)
+plot(regfit_summary$bic, type = "b", xlab = "Number of Variables", ylab = "BIC", main = toString(ind_bic))
+points(ind_bic, regfit_summary$bic[ind_bic], col = "red", pch = 20)
+
+ind_adjr2 = which.max(regfit_summary$adjr2)
+plot(regfit_summary$adjr2, type = "b", xlab = "Number of Variables", ylab = "Adjusted R Squared", main = toString(ind_adjr2))
+points(ind_adjr2, regfit_summary$adjr2[ind_adjr2], col = "red", pch = 20)
+
+#ind_cv <- which.min(error_mean)
+#plot(error_mean, type = "b", xlab = "Number of Variables", ylab = "Cross Validation", main = toString(ind_cv))
+#points(ind_cv, error_mean[ind_cv], col = "red", pch = 20)
+
+# ind_cv <- which.min(error_mean)
+# plot(error_mean,type = "b",xlab = "Number of variables",ylab = "Cross validation", main = toString(ind_cv))
+# points(ind_cv, error_mean[ind_cv],col = "red",pch = 20)
+```
+Each measure has a different number of variables. Minimizing the Cp has 13 variables, minimizing the BIC has 10 variables, and maximizing the adjusted R squared has 22 variables. The average of these three is a model with 15 variables.
 
 
 $\rightarrow$ What are the coefficients of the best model according to different measures?
 
+```{r}
+coef(regfit_all, ind_cp) %>%
+  round(2) %>%
+  data.frame()
 
+coef(regfit_all, ind_bic) %>%
+  round(2) %>%
+  data.frame()
 
+coef(regfit_all, ind_adjr2) %>%
+  round(2) %>%
+  data.frame()
+
+#coef(regfit_all, ind_cv) %>%
+#  round(2) %>%
+#  data.frame()
+```
+#write
 
 #### Assess the performance of the model on the testing data
 
 Use the model to predict the homeless rate in the testing data. We will use the best BIC model as an example, but you should compare the performance of all models.
 
+##### Cp Model Analysis
 
 $\rightarrow$ Select the variables that are indicated by the best subset selection criterion that you choose (Cp, BIC, Adjusted R-squared, or CV) and produce a new, smaller data frame.
 
-
+```{r}
+df_cp <- df_train %>%
+  select(all_of(names(coef(regfit_all, ind_cp))[2:length(coef(regfit_all, ind_cp))]), "rate_homeless")
+```
 
 
 $\rightarrow$ Fit the model using this subset. The `lm` object will help us to make predictions easily.
 
-
+```{r}
+lm_cp <- lm(rate_homeless ~ ., data = df_cp)
+summary(lm_cp)
+```
+All of the variables are significant at the 0.05 level.
 
 
 $\rightarrow$ Generate predictions of the ACT score in the testing data.
 
+```{r}
+cp_pred <- predict(lm_cp, df_test)
+```
 
 
 $\rightarrow$ Make a scatter plot to compare the actual value and the predicted value of `rate_homeless`.
 
+```{r}
+plot(df_test$rate_homeless, cp_pred, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+```
 
 
 $\rightarrow$ Compute the RMSE. How does the RMSE compare to the error for the full model?
 
+```{r}
+cp_rmse <- (df_test$rate_homeless - cp_pred)^2 %>%
+  mean() %>%
+  sqrt()
+cp_rmse
+```
+The RMSE is 11.85. It's close to the RMSE of the full model.
+
+##### BIC Model Analysis
+
+```{r}
+df_bic <- df_train %>%
+  select(all_of(names(coef(regfit_all, ind_cp))[2:length(coef(regfit_all, ind_bic))]), "rate_homeless")
+
+lm_bic <- lm(rate_homeless ~ ., data = df_bic)
+summary(lm_bic)
+
+pred_bic <- predict(lm_bic, df_test)
+
+plot(df_test$rate_homeless, pred_bic, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+
+rmse_bic <- (df_test$rate_homeless - pred_bic)^2 %>%
+  mean() %>%
+  sqrt()
+rmse_bic
+```
 
 
+##### Adjusted R Squared Model Analysis
+
+##### CV Model Analysis
+
+##### Comparison of Model Analyses
 
 ### Lasso
 
