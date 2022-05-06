@@ -301,6 +301,7 @@ Economic: 3
 Subgroup: 2
 Identifier: 2
 
+Most of the variables describe demographics.
 
 ### Further exploration of basic properties
 
@@ -700,11 +701,13 @@ There are 37 variables that can be used as predictors, and 374 observations. Thi
 We will split the data into training and testing sets, with 85% of the data kept for training.   
 
 ```{r}
+# Set seed
 set.seed(20)
-#Do the split. Keep 85% for training. Use stratified sampling based on rate_homeless
+
+# Split data (85% training, 15% test)
 split <- initial_split(df_2017, prop = 0.85, strata = rate_homeless)
 
-#Extract the training and testing splits
+# Get train/test split
 df_train <- training(split)
 df_test <- testing(split)
 
@@ -764,8 +767,12 @@ $\rightarrow$ Make a scatter plot to compare the actual value and the predicted 
 
 ```{r}
 plot(df_test$rate_homeless, lm_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+abline(0, 1)
 ```
-#WRITE SOMETHING HERE IDK WHAT THIS MEANS!
+
+<br>
+
+The graph shows that the linear model with all the variables 
 
 $\rightarrow$ Compute the RMSE
 
@@ -781,21 +788,22 @@ The RMSE is 9.56.
 $\rightarrow$ Repeat the regression analysis, but using a different random seed before the train-test split. Does the train-test split affect the significance of the coefficients and their values?
 
 ```{r}
-set.seed(0)
+# Set seed to 10
+set.seed(10)
 
-split_80 <- initial_split(df_2017, prop = 0.80, strata = rate_homeless)
+split_10 <- initial_split(df_2017, prop = 0.85, strata = rate_homeless)
 
-#Extract the training and testing splits
-df_train_80 <- training(split_80)
-df_test_80 <- testing(split_80)
+# Get train and test split
+df_train_10 <- training(split_10)
+df_test_10 <- testing(split_10)
 
-fit_80 <- lm(rate_homeless ~ ., data = df_train_80)
-summary(fit_80)
-plot(fit_80, 1)
-predict_80 <- predict(fit_80, df_test_80)
-plot(df_test_80$rate_homeless, predict_80, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+fit_10 <- lm(rate_homeless ~ ., data = df_train_10)
+summary(fit_10)
+plot(fit_10, 1)
+predict_10 <- predict(fit_10, df_test_10)
+plot(df_test_10$rate_homeless, predict_10, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
 ```
-#CHECK SIGNIFICANT VALUES! AND WRITE!
+The residual graph is similar to the residual graph from the first seed. The points continue to be systemically structured in a curve. SOMETHING ABOUT THE LAST GRAPH!
 
 ### Subset selection
 
@@ -830,26 +838,30 @@ regfit_summary <- summary(regfit_all)
 $\rightarrow$ Use 10-fold cross validation on the training data to determine the best subset of predictors in the model.
 
 ```{r}
-# row <- nrow(df_train)
-# 
-# num_fold <- 10
-# 
-# set.seed(1)
-# 
-# folds <- sample(1:num_fold, row, replace = TRUE)
-# error <- matrix(NA, num_fold, n, dimnames = list(NULL, paste(1:n)))
-# 
-# for (i in 1:num_fold) {
-#   reg_fit_best <- regsubsets(rate_homeless ~ ., data = df_train[folds != j,], nvmax = n)
-#   test_mat <- model.matrix(rate_homeless ~ ., data = df_train[folds == j,])
-#   for (j in 1:n) {
-#     c <- coef(reg_fit_best, id = j)
-#     p <- test_mat[,names(c)] %*% c
-#     error[i, j] <- mean((df_train$rate_homeless[folds == i] - p)^2)
-#   }
-# }
-# 
-# error_mean <- apply(error, 2, mean)
+# Set number of observations (rows)
+row <- nrow(df_train)
+ 
+# Set number of folds
+num_fold <- 10
+ 
+# Set seed
+set.seed(1)
+ 
+
+folds <- sample(1:num_fold, row, replace = TRUE)
+error <- matrix(NA, num_fold, n, dimnames = list(NULL, paste(1:n)))
+  
+for (i in 1:num_fold) {
+  reg_fit_best <- regsubsets(rate_homeless ~ ., data = df_train[folds != i,], nvmax = n)
+  test_mat <- model.matrix(rate_homeless ~ ., data = df_train[folds == i,])
+  for (j in 1:n) {
+    c <- coef(reg_fit_best, id = j)
+    p <- test_mat[,names(c)] %*% c
+    error[i, j] <- mean((df_train$rate_homeless[folds == i] - p)^2)
+  }
+}
+ 
+error_mean <- apply(error, 2, mean)
 ```
 
 $\rightarrow$ Plot the assessment measures vs. the number of predictors
@@ -869,13 +881,9 @@ ind_adjr2 = which.max(regfit_summary$adjr2)
 plot(regfit_summary$adjr2, type = "b", xlab = "Number of Variables", ylab = "Adjusted R Squared", main = toString(ind_adjr2))
 points(ind_adjr2, regfit_summary$adjr2[ind_adjr2], col = "red", pch = 20)
 
-#ind_cv <- which.min(error_mean)
-#plot(error_mean, type = "b", xlab = "Number of Variables", ylab = "Cross Validation", main = toString(ind_cv))
-#points(ind_cv, error_mean[ind_cv], col = "red", pch = 20)
-
-# ind_cv <- which.min(error_mean)
-# plot(error_mean,type = "b",xlab = "Number of variables",ylab = "Cross validation", main = toString(ind_cv))
-# points(ind_cv, error_mean[ind_cv],col = "red",pch = 20)
+ind_cv <- which.min(error_mean)
+plot(error_mean, type = "b", xlab = "Number of Variables", ylab = "Cross Validation", main = toString(ind_cv))
+points(ind_cv, error_mean[ind_cv], col = "red", pch = 20)
 ```
 Each measure has a different number of variables. Minimizing the Cp has 13 variables, minimizing the BIC has 10 variables, and maximizing the adjusted R squared has 22 variables. The average of these three is a model with 15 variables.
 
@@ -895,9 +903,9 @@ coef(regfit_all, ind_adjr2) %>%
   round(2) %>%
   data.frame()
 
-#coef(regfit_all, ind_cv) %>%
-#  round(2) %>%
-#  data.frame()
+coef(regfit_all, ind_cv) %>%
+  round(2) %>%
+  data.frame()
 ```
 #write
 
@@ -907,72 +915,117 @@ Use the model to predict the homeless rate in the testing data. We will use the 
 
 ##### Cp Model Analysis
 
-$\rightarrow$ Select the variables that are indicated by the best subset selection criterion that you choose (Cp, BIC, Adjusted R-squared, or CV) and produce a new, smaller data frame.
-
 ```{r}
+# Select best variable subset from Cp analysis
 df_cp <- df_train %>%
   select(all_of(names(coef(regfit_all, ind_cp))[2:length(coef(regfit_all, ind_cp))]), "rate_homeless")
-```
 
-
-$\rightarrow$ Fit the model using this subset. The `lm` object will help us to make predictions easily.
-
-```{r}
+# Fit linear regression model from subset
 lm_cp <- lm(rate_homeless ~ ., data = df_cp)
 summary(lm_cp)
-```
-All of the variables are significant at the 0.05 level.
 
+# Predict homeless rate from model
+pred_cp <- predict(lm_cp, df_test)
 
-$\rightarrow$ Generate predictions of the ACT score in the testing data.
+# Plot actual vs predicted homeless rate
+plot(df_test$rate_homeless, pred_cp, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+# Add x = y line
+abline(0, 1)
 
-```{r}
-cp_pred <- predict(lm_cp, df_test)
-```
-
-
-$\rightarrow$ Make a scatter plot to compare the actual value and the predicted value of `rate_homeless`.
-
-```{r}
-plot(df_test$rate_homeless, cp_pred, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
-```
-
-
-$\rightarrow$ Compute the RMSE. How does the RMSE compare to the error for the full model?
-
-```{r}
-cp_rmse <- (df_test$rate_homeless - cp_pred)^2 %>%
+# Calculate RMSE
+rmse_cp <- (df_test$rate_homeless - pred_cp)^2 %>%
   mean() %>%
   sqrt()
-cp_rmse
+rmse_cp
 ```
-The RMSE is 11.85. It's close to the RMSE of the full model.
+
+Not all of the variables are significant. At the 0.05 level, high_housing_density, share_overcrowded_units_2016, suburban, share_HUD_units, migration_4_year_change, proportion_one_person_households, share_no_bachelors, percentage_excessive_drinking, and total_Jan_precipitation are significant. The model also includes demographic variables. In the actual vs predicted homeless rate model, more points are clustered above the x = y line. The predicted values are higher than the actual values. The RMSE is 11.85. It's close to the RMSE of the full model.
+
 
 ##### BIC Model Analysis
 
 ```{r}
+# Select subset of variables from best subset selection
 df_bic <- df_train %>%
-  select(all_of(names(coef(regfit_all, ind_cp))[2:length(coef(regfit_all, ind_bic))]), "rate_homeless")
+  select(all_of(names(coef(regfit_all, ind_bic))[2:length(coef(regfit_all, ind_bic))]), "rate_homeless")
 
+# Fit model from subset
 lm_bic <- lm(rate_homeless ~ ., data = df_bic)
 summary(lm_bic)
 
+# Predict rate_homeless from model
 pred_bic <- predict(lm_bic, df_test)
 
+# Plot actual vs predicted omeless rate
 plot(df_test$rate_homeless, pred_bic, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+# Add x = y line
+abline(0, 1)
 
+# Calculate RMSE
 rmse_bic <- (df_test$rate_homeless - pred_bic)^2 %>%
   mean() %>%
   sqrt()
 rmse_bic
 ```
 
+All the variables included in the model are significant at the 0.01 level. In the actual vs predicted homeless rate graph, most of the points are clustered about the x = y line, so the model predicts higher values for the homeless rate than they actually are. The RMSE is 9.82, which is lower than the RMSE for the full model. The BIC model is a better fit than the full model.
 
 ##### Adjusted R Squared Model Analysis
+```{r}
+# Select best variables from adjusted R square analysis
+df_adjr2 <- df_train %>%
+  select(all_of(names(coef(regfit_all, ind_adjr2))[2:length(coef(regfit_all, ind_adjr2))]), "rate_homeless")
+
+# Fit model with data subset
+lm_adjr2 <- lm(rate_homeless ~ ., data = df_adjr2)
+summary(lm_adjr2)
+
+# Predict homeless rate
+pred_adjr2 <- predict(lm_adjr2, df_test)
+
+# Plot measured vs predicted values for rate_homeless
+plot(df_test$rate_homeless, pred_adjr2, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+# Add x = y line
+abline(0, 1) 
+
+# Calculate RMSE
+rmse_adjr2 <- (df_test$rate_homeless - pred_adjr2)^2 %>%
+  mean() %>%
+  sqrt()
+rmse_adjr2
+```
+Not all variables are significant. At the 0.05 level, share_overcrowded_units_2016, suburban, share_HUD_units, migration_4_year_change, proportion_one_person_households, and total_Jan_precipitation are significant. Comparing the actual and predicted values shows that the homeless rate is predicted higher than it actually is.  The RMSE is 11.25. It is similar to the RMSE for the full model.
 
 ##### CV Model Analysis
 
+```{r}
+# Select best variables from CV analysis
+df_cv <- df_train %>%
+  select(all_of(names(coef(regfit_all, ind_cv))[2:length(coef(regfit_all, ind_cv))]), "rate_homeless")
+
+# Fit model with data subset
+lm_cv <- lm(rate_homeless ~ ., data = df_cv)
+summary(lm_cv)
+
+# Predict homeless rate
+pred_cv <- predict(lm_cv, df_test)
+
+# Plot measured vs predicted values for rate_homeless
+plot(df_test$rate_homeless, pred_cv, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+# Add x = y line
+abline(0, 1) 
+
+# Calculate RMSE
+rmse_cv <- (df_test$rate_homeless - pred_cv)^2 %>%
+  mean() %>%
+  sqrt()
+rmse_cv
+```
+All the included variables are significant. The actual vs predicted graph is even for lower homeless rates, and differs for higher rates. The RMSE is 9.017.
+
 ##### Comparison of Model Analyses
+
+
 
 ### Lasso
 
@@ -985,41 +1038,72 @@ where $\lambda \geq 0$ is a tuning parameter (or hyperparameter).
 
 $\rightarrow$ Prepare the data by creating a model matrix `x_train` from the training data. Create the model matrix using `model.matrix` so that it includes the training data for all predictors, but does not include a column for the intercept. Also create the training response data `y_train`.
 
+```{r}
+# remove train?
+x_train <- model.matrix(rate_homeless ~ ., df_train)[,-1]
+y_train <- df_train$rate_homeless
+```
 
 
 
 $\rightarrow$ Use cross-validation to find the best hyperparameter $\lambda$
 
+```{r}
+lasso_cv <- cv.glmnet(x_train, y_train, alpha = 1)
+```
 
 
 $\rightarrow$ Show error as a function of the hyperparameter $\lambda$ and its best value.
 
+```{r}
+plot(lasso_cv)
+lasso_best_lam <- lasso_cv$lambda.1se
+lasso_best_lam
+```
 
 
 $\rightarrow$ Fit the lasso with the best $\lambda$ using the function `glmnet`.
 
+```{r}
+lasso_mod <- glmnet(x_train, y_train, alpha = 1, lambda = lasso_best_lam)
+```
 
 
 $\rightarrow$ Examine the coefficients. Which variables have non-zero coefficients?
 
+```{r}
+coef(lasso_mod)
+```
 
-
-
+# !!!??!!!!
 
 #### Look at prediction error
 
 
 $\rightarrow$ Use the model to predict the homeless rate in the testing data.
 
-
+```{r}
+x_test <- model.matrix(rate_homeless ~ ., df_test)[,-1]
+lasso_predict <- predict(lasso_mod, s = lasso_best_lam, newx = x_test)
+```
 
 
 $\rightarrow$ Make a scatter plot to compare the actual value and the predicted value of `rate_homeless`.
 
-
+```{r}
+plot(df_test$rate_homeless, lasso_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+abline(0, 1)
+```
 
 $\rightarrow$ Compute the RMSE. How does it compare to the other models?
 
+```{r}
+lasso_rmse <- (df_test$rate_homeless - lasso_predict)^2 %>%
+  mean() %>%
+  sqrt()
+lasso_rmse
+```
+The RMSE is 8.97.
 
 
 ### Ridge regression
@@ -1039,8 +1123,32 @@ The fitting procedure for the ridge regression model mirrors the lasso approach,
 
 $\rightarrow$ Fit and assess a ridge regression model. How does it compare to the other models?
 
+```{r}
+# Perform ridge cross validation
+ridge_cv <- cv.glmnet(x_train, y_train, alpha = 0)
 
+# Find best lambda
+ridge_best_lam <- ridge_cv$lambda.1se
+ridge_best_lam
 
+# Fit model
+ridge_mod <- glmnet(x_train, y_train, alpha = 0, lambda = ridge_best_lam)
+
+# Predict values from model
+ridge_predict <- predict(ridge_mod, s = ridge_best_lam, newx = x_test)
+
+# Plot actual vs predicted values
+plot(df_test$rate_homeless, ridge_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+abline(0, 1)
+
+# Calculate RMSE
+ridge_rmse <- (df_test$rate_homeless - ridge_predict)^2 %>%
+  mean() %>%
+  sqrt()
+ridge_rmse
+```
+
+The RMSE is 9.02.
 
 
 ### XGBoost
@@ -1165,7 +1273,8 @@ Plot the ACT scores and the prediction
 
 ```{r}
 
-plot(final_res$.predictions[[1]]$rate_homeless,final_res$.predictions[[1]]$.pred, pch = 20, xlab = "Homeless rate", ylab = "Predicted homeless rate")
+plot(final_res$.predictions[[1]]$rate_homeless,final_res$.predictions[[1]]$.pred, xlab = "Homeless rate", ylab = "Predicted homeless rate")
+abline(0, 1)
 
 ```
 
@@ -1178,7 +1287,7 @@ Look at which predictors are most important in the model
 
 final_xgb %>%
   fit(data = df_train) %>%
-  pull_workflow_fit() %>%
+  extract_fit_parsnip() %>%
   vip(geom = "col")
 
 ```
@@ -1197,6 +1306,10 @@ You used several methods to construct a model
 
 Compare the performance of the models. 
 
+The full linear regression model has three most significant variables: log_median_rent, migration_4_year_change, and total_Jan_precipitation. The plot of the residuals has a systemic structure, where many of the points are clustered on the left in an almost parabolic shape. In the plot of actual vs predicted homeless rate, the lower rates are pretty evenly distributed around the x = y line. At higher actual homeless rates, the predictions are more off. The RMSE is 11.46.
+The different linear regression subset selections have slightly different values for the RMSE, and similar actual vs predicted homeless rate graphs. The Cp model includes 15 variables, though not all of them are significant. The RMSE is 11.71, which is slightly higher than the RMSE of the full linear model. The BIC model has an RMSE of 9.82, and includes 10 significant variables. The adjusted r squared model has an RMSE of 11.25 and 20 variables. Not all of the variables in this model are significant. The cross validation model has 3 significant variables and an RMSE of 9.02, which the lowest RMSE from all the linear models. The three variables included in the CV model are share_overcrowded_units_2016, proportion_one_person_households, and total_Jan_precipitation. All three of these variables are included and significant in all the other subset selections.
+
+In the lasso model, 6 of the variables have non-zero coefficients. The predicted vs actual homeless rate plot looks similar to those from the all the linear regression models. The predicted values are close for lower homeless rates, and off for higher ones. The RMSE is 9.06. It's lower than the RMSE from the full linear regression model, and close to the cross validation subset.
 
 
 ## Additional step
