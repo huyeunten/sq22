@@ -234,9 +234,7 @@ Below are suggested variables to keep in the analysis. You may include other var
 $\rightarrow$ Construct the list `variable_names` that we will keep for the analysis. 
 
 ```{r}
-#Search through data dictionary to find other variables to include
-
-
+# Search through data dictionary to find other variables to include
 variable_names <- c("year", "cocnumber",
   
   "pit_tot_hless_pit_hud", "pit_tot_shelt_pit_hud", "pit_tot_unshelt_pit_hud","dem_pop_pop_census",
@@ -251,7 +249,7 @@ variable_names <- c("year", "cocnumber",
            "dem_health_excesdrink_chr",
            
            "env_wea_avgtemp_noaa", "env_wea_avgtemp_summer_noaa", "env_wea_precip_noaa", "env_wea_precip_annual_noaa")
-           
+
 ```
 
 $\rightarrow$ Select this subset of variables from the full data set. Call the new data frame `df_small`.
@@ -648,7 +646,6 @@ df_2017 %>%
 
 $\rightarrow$ Create additional plots to further understand the data set. Describe your findings.
 
-#DO THIS!!
 
 ```{r}
 
@@ -782,8 +779,7 @@ rmse <- (df_test$rate_homeless - lm_predict)^2 %>%
   sqrt()
 rmse
 ```
-The RMSE is 9.56.
-#WHAT DOES THIS MEAN??!
+The RMSE is 11.46.
 
 $\rightarrow$ Repeat the regression analysis, but using a different random seed before the train-test split. Does the train-test split affect the significance of the coefficients and their values?
 
@@ -791,19 +787,26 @@ $\rightarrow$ Repeat the regression analysis, but using a different random seed 
 # Set seed to 10
 set.seed(10)
 
+# Split data
 split_10 <- initial_split(df_2017, prop = 0.85, strata = rate_homeless)
 
 # Get train and test split
 df_train_10 <- training(split_10)
 df_test_10 <- testing(split_10)
 
+# Fit multiple linear regression
 fit_10 <- lm(rate_homeless ~ ., data = df_train_10)
 summary(fit_10)
+
+# Graph residuals
 plot(fit_10, 1)
+
+# Predict for testing data, 
 predict_10 <- predict(fit_10, df_test_10)
 plot(df_test_10$rate_homeless, predict_10, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+abline(0, 1)
 ```
-The residual graph is similar to the residual graph from the first seed. The points continue to be systemically structured in a curve. SOMETHING ABOUT THE LAST GRAPH!
+The residual graph is similar to the residual graph from the first seed. The points continue to be systemically structured in a curve. The actual vs predicted graph is also similar, except for the points with high actual homeless rates. The coefficients are different, and give different significant predictor variables. When the seed was 20, migration_4_year_change, log_median_rent, and total_Jan_precipitation had the smallest p-values. When the seed was 10, total_Jan_precipitation and proportion_one_person_households had the smallest p-values.
 
 ### Subset selection
 
@@ -867,25 +870,38 @@ error_mean <- apply(error, 2, mean)
 $\rightarrow$ Plot the assessment measures vs. the number of predictors
 
 ```{r}
+# Set up 2x2 graphs
 par(mfrow = c(2, 2))
 
+# Find number of variables for minimum cp
 ind_cp <- which.min(regfit_summary$cp)
+# Plot graph, title with number of variables
 plot(regfit_summary$cp, type = "b", xlab = "Number of Variables", ylab = "Cp", main = toString(ind_cp))
+# Color minimum point red
 points(ind_cp, regfit_summary$cp[ind_cp], col = "red", pch = 20)
 
+# Find number of variables for minimum bic
 ind_bic = which.min(regfit_summary$bic)
+# Plot graph, title with number of variables
 plot(regfit_summary$bic, type = "b", xlab = "Number of Variables", ylab = "BIC", main = toString(ind_bic))
+# Color minimum point red
 points(ind_bic, regfit_summary$bic[ind_bic], col = "red", pch = 20)
 
+# Find number of variables for maximum adjusted r squared
 ind_adjr2 = which.max(regfit_summary$adjr2)
+# Plot graph, title with number of variables
 plot(regfit_summary$adjr2, type = "b", xlab = "Number of Variables", ylab = "Adjusted R Squared", main = toString(ind_adjr2))
+# Color maximum point red
 points(ind_adjr2, regfit_summary$adjr2[ind_adjr2], col = "red", pch = 20)
 
+# Find number of variables to minimize mean error
 ind_cv <- which.min(error_mean)
+# Plot graph
 plot(error_mean, type = "b", xlab = "Number of Variables", ylab = "Cross Validation", main = toString(ind_cv))
+# Color minimum point red
 points(ind_cv, error_mean[ind_cv], col = "red", pch = 20)
 ```
-Each measure has a different number of variables. Minimizing the Cp has 13 variables, minimizing the BIC has 10 variables, and maximizing the adjusted R squared has 22 variables. The average of these three is a model with 15 variables.
+Each measure has a different number of variables. Minimizing the Cp has 13 variables, minimizing the BIC has 10 variables, maximizing the adjusted R squared has 20 variables, and minimizing the mean error has 9 variables.
 
 
 $\rightarrow$ What are the coefficients of the best model according to different measures?
@@ -907,7 +923,7 @@ coef(regfit_all, ind_cv) %>%
   round(2) %>%
   data.frame()
 ```
-#write
+
 
 #### Assess the performance of the model on the testing data
 
@@ -939,7 +955,7 @@ rmse_cp <- (df_test$rate_homeless - pred_cp)^2 %>%
 rmse_cp
 ```
 
-Not all of the variables are significant. At the 0.05 level, high_housing_density, share_overcrowded_units_2016, suburban, share_HUD_units, migration_4_year_change, proportion_one_person_households, share_no_bachelors, percentage_excessive_drinking, and total_Jan_precipitation are significant. The model also includes demographic variables. In the actual vs predicted homeless rate model, more points are clustered above the x = y line. The predicted values are higher than the actual values. The RMSE is 11.85. It's close to the RMSE of the full model.
+Not all of the variables are significant. At the 0.05 level, high_housing_density, share_overcrowded_units_2016, suburban, share_HUD_units, migration_4_year_change, proportion_one_person_households, share_no_bachelors, percentage_excessive_drinking, and total_Jan_precipitation are significant. The model also includes demographic variables. In the actual vs predicted homeless rate model, the predicted values are higher than the actual values. The RMSE is 11.85. It's close to the RMSE of the full model.
 
 
 ##### BIC Model Analysis
@@ -1023,10 +1039,6 @@ rmse_cv
 ```
 All the included variables are significant. The actual vs predicted graph is even for lower homeless rates, and differs for higher rates. The RMSE is 9.017.
 
-##### Comparison of Model Analyses
-
-
-
 ### Lasso
 
 
@@ -1039,11 +1051,11 @@ where $\lambda \geq 0$ is a tuning parameter (or hyperparameter).
 $\rightarrow$ Prepare the data by creating a model matrix `x_train` from the training data. Create the model matrix using `model.matrix` so that it includes the training data for all predictors, but does not include a column for the intercept. Also create the training response data `y_train`.
 
 ```{r}
-# remove train?
+# Create model matrix, remove intercept
 x_train <- model.matrix(rate_homeless ~ ., df_train)[,-1]
+# Create training response
 y_train <- df_train$rate_homeless
 ```
-
 
 
 $\rightarrow$ Use cross-validation to find the best hyperparameter $\lambda$
@@ -1075,7 +1087,7 @@ $\rightarrow$ Examine the coefficients. Which variables have non-zero coefficien
 coef(lasso_mod)
 ```
 
-# !!!??!!!!
+The variables with non-zero coefficients are utility_costs, share_renters_2016, share_overcrowded_units_2016, and total_Jan_precipitation.
 
 #### Look at prediction error
 
@@ -1315,6 +1327,105 @@ In the lasso model, 6 of the variables have non-zero coefficients. The predicted
 ## Additional step
 
 In addition to completing the above analyses, you should perform any revisions to the models that you think might improve their performance. Consult Canvas for further directions.
+
+### Question
+
+I chose to look at how the location may have an effect on the most significant variables. The original large data set has a variable for the four census regions (northeast, midwest, south, west).
+
+### Data Re-organization
+
+```{r}
+# Select variables from original lasso analysis and add census_region
+var_region <- c("year",
+  
+  "pit_tot_hless_pit_hud", "dem_pop_pop_census",
+  
+  "hou_mkt_utility_xt", "hou_mkt_rentshare_acs5yr_2017", "hou_mkt_ovrcrowd_acs5yr_2017",
+          
+  "env_wea_precip_noaa",
+  
+  "census_region"
+  )
+df_region <- df %>%
+  select(all_of(var_region)) %>%
+  filter(year == 2017)
+```
+
+```{r}
+df_region <- df_region %>% 
+   rename(
+total_homeless = "pit_tot_hless_pit_hud",
+total_population = "dem_pop_pop_census",
+total_Jan_precipitation = "env_wea_precip_noaa",
+share_renters_2016 = "hou_mkt_rentshare_acs5yr_2017",
+share_overcrowded_units_2016 = "hou_mkt_ovrcrowd_acs5yr_2017",
+utility_costs  = "hou_mkt_utility_xt",
+)
+
+df_region <- df_region %>%
+  filter(is.na(total_homeless) == FALSE)
+```
+
+```{r}
+df_region <- df_region %>%
+  mutate(rate_homeless = total_homeless / (total_population / 10000)) %>%
+  mutate(census_region = as.factor(census_region))
+```
+
+```{r}
+set.seed(20)
+
+split_region <- initial_split(df_region, prop = 0.85, strata = rate_homeless)
+
+train_region <- training(split_region)
+test_region <- testing(split_region)
+```
+
+
+
+### Analysis
+```{r}
+x_train_region <- model.matrix(rate_homeless ~ utility_costs*census_region + share_renters_2016*census_region + share_overcrowded_units_2016*census_region + total_Jan_precipitation*census_region, train_region)[,-1]
+y_train_region <- train_region$rate_homeless
+```
+
+```{r}
+lasso_region_cv <- cv.glmnet(x_train_region, y_train_region, alpha = 1)
+```
+
+```{r}
+plot(lasso_region_cv)
+```
+The minimum lambda has seven variables and the one standard error lambda has three variables.
+
+```{r}
+lasso_region_best_lam <- lasso_region_cv$lambda.1se
+lasso_region_best_lam
+```
+```{r}
+lasso_region_mod <- glmnet(x_train_region, y_train_region, alpha = 1, lambda = lasso_region_best_lam)
+```
+
+```{r}
+coef(lasso_region_mod)
+```
+
+```{r}
+x_test_region <- model.matrix(rate_homeless ~ utility_costs*census_region + share_renters_2016*census_region + share_overcrowded_units_2016*census_region + total_Jan_precipitation*census_region, test_region)[,-1]
+lasso_region_predict <- predict(lasso_region_mod, s = lasso_region_best_lam, newx = x_test_region)
+```
+
+```{r}
+plot(test_region$rate_homeless, lasso_region_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+abline(0, 1)
+```
+
+```{r}
+lasso_region_rmse <- (test_region$rate_homeless - lasso_region_predict)^2 %>%
+  mean() %>%
+  sqrt()
+lasso_region_rmse
+```
 
 
 ## Conclusion
