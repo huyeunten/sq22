@@ -15,6 +15,8 @@ The U.S. Department of Housing and Urban Development (HUD) produced a report in 
 
 We will investigate whether there are alternative modeling approaches that outperform the models described in the HUD report.
 
+We want to specifically look at which HUD variables are best at predicting homeless rates. The HUD report includes predictors that have to do with the housing market, economy, local safety nets, and climate, as well as demographic and identifier variables.
+
 ## Data Collection
 
 The data for this project are described in HUD's report [Market Predictors of Homelessness](https://www.huduser.gov/portal/sites/default/files/pdf/Market-Predictors-of-Homelessness.pdf) in the section titled DATA.
@@ -104,6 +106,7 @@ dictionary %>%
   coord_flip() +
   labs(x = "Source or Root Variable", y = "Count")
 ```
+Most of the data comes from the census ACS 5-year estimates. Some of the data also comes from local area unemployment statistics, census building permits survey, and the census. Many of the variables come from various census sources. The tenth-most common source is the Federal Reserve Bank of St. Louis, which is the only source that is not national.
 
 $\rightarrow$ What are the different Associated Domains of the variables?
 
@@ -117,6 +120,7 @@ dictionary %>%
   scale_y_continuous(labels = scales::percent) +
   labs(x = "Associated Doman", y = "Percentage")
 ```
+Most of the variables are demographic and housing variables. Some of them are also related to safety nets, economics, and outcomes.
 
 
 A big part of this project will be figuring out what variables to include in the analysis.
@@ -217,13 +221,16 @@ Refer to the data dictionary and the [HUD report]((https://www.huduser.gov/porta
 #### Explore the columns
 
 What are the variables?
+The data frame includes 332 different variables that are homeless rates at different times and places; possible predictors related to the local housing market, economy, community, and climate; and demographics/identifiers.
 
 What variable(s) do we want to predict?
+We want to predict the homeless rate.
 
 What variables seem useful as predictors?
+The housing market and community variables would probably be the most useful as predictors.
 
 What predictor variables are redundant?
-
+Some housing market variables seem like the same thing but from different sources. Many of the variables from the ACS 5 year estimates also have two each, depending on the year.
 
 It will take a significant amount of work to understand the contents of the data set. We will discuss this in class.
 
@@ -251,6 +258,8 @@ variable_names <- c("year", "cocnumber",
            "env_wea_avgtemp_noaa", "env_wea_avgtemp_summer_noaa", "env_wea_precip_noaa", "env_wea_precip_annual_noaa")
 
 ```
+
+I kept the suggested variables from the course reader.
 
 $\rightarrow$ Select this subset of variables from the full data set. Call the new data frame `df_small`.
 
@@ -291,15 +300,7 @@ dictionary_small %>%
   labs(x = "Associated Domain", y = "Count")
 ```
 
-Demographic: 16
-Housing: 10
-Climate: 4
-Safety net: 3
-Economic: 3
-Subgroup: 2
-Identifier: 2
-
-Most of the variables describe demographics.
+Like the larger data set, most of the variables describe demographic and housing variables.
 
 ### Further exploration of basic properties
 
@@ -326,9 +327,6 @@ I used the data dictionary to create more readable names for the minimal set of 
 The data frame with renamed columns is called `df_hud`.
 
 ```{r}
-
-#Add your new names to this list. If you add variable names, the order of the variables in the dictionay_small will change and you will need to reassign the numbers.
-
 df_hud <- df_small %>% 
   rename(coc_number = dictionary_small$Variable[2],
     total_sheltered = dictionary_small$Variable[3],
@@ -398,7 +396,7 @@ $\rightarrow$ How many missing values are there in each column? Give the number 
 ```{r}
 skim(df_hud)
 ```
-
+There are 14 missing values (0.4%) from total_homeless, total_sheltered, and total_unsheltered. There are 1504 missing values (50%) from log_median_rent, utility_costs, rental_vacancy_rate, share_built_before_1940, proportion_one_person_households, share_under_18_with_single_parent, share_veteran_status, and share_no_bachelors. There are 2632 missing values (87.5%) from migration_4_year_change and percentage_excessive_drinking. There are 2 missing values (0.06%) from average_summer_temperature.
 
 We are interested in predicting the number of people experiencing homelessness. So, we will remove the rows where those numbers are missing.
 
@@ -415,6 +413,7 @@ There are some variables that are missing many of their values.
 $\rightarrow$ Produce scatter plots of the variables that are missing many values vs. time to see if data are missing from particular years.
 
 ```{r}
+# Plot three variables that have over 1000 missing values
 ggplot(data = df_hud, aes(x = year, y = log_median_rent)) +
   geom_point()
 ggplot(data = df_hud, aes(x = year, y = percentage_excessive_drinking)) +
@@ -423,7 +422,7 @@ ggplot(data = df_hud, aes(x = year, y = migration_4_year_change)) +
   geom_point()
 ```
 
-Some variables only have data for 2017 (migration_4_year_change and percentage_excessive_drinking).
+Some variables only have data for 2017 (migration_4_year_change and percentage_excessive_drinking). These were the variables missing over 2000 values.
 
 $\rightarrow$ Produce a data frame with data only from 2017. Call it `df_2017`.
 
@@ -461,13 +460,16 @@ ggplot(data = df_2017, aes(x = total_homeless)) +
 ```
 
 ```{r}
+# Set limits to better see the outlier values
 ggplot(data = df_2017, aes(x = total_homeless)) +
   geom_histogram(boundary = 0) +
   coord_cartesian(ylim = c(0, 10)) +
   labs(x = "Total Homeless", y = "Count")
 ```
 
-The data is mostly positively skewed, with lots of data points close to 0. There are also some outliers that are higher numbers, probably for larger cities. 
+The data is mostly positively skewed, with lots of data points close to 0. There are also some outliers that are higher numbers, probably for larger cities.
+
+#### Look at population distribution
 
 ```{r}
 ggplot(data = df_2017, aes(x = total_population)) +
@@ -475,7 +477,7 @@ ggplot(data = df_2017, aes(x = total_population)) +
   labs(x = "Total Population", y = "Count")
 ```
 
-The total population histogram is also positively skewed. Most of the data points are near 0, with some outliers with higher populations.
+The total population histogram is also positively skewed. Most of the data points are near 0, with some outliers with higher populations. It matches the same shape as the total_homeless histogram.
 
 $\rightarrow$ Make a histogram of the number of sheltered homeless in 2017.
 
@@ -484,7 +486,7 @@ ggplot(data = df_2017, aes(x = total_sheltered)) +
   geom_histogram(boundary = 0) +
   labs(x = "Total Sheltered", y = "Count")
 ```
-
+The graph is positively skewed, with one outlier close to 80000. It has the same shape as the total_homeless and total_population graphs.
 
 $\rightarrow$ Make a histogram of the number of unsheltered homeless in 2017.
 
@@ -493,6 +495,7 @@ ggplot(data = df_2017, aes(x = total_unsheltered)) +
   geom_histogram(boundary = 0) +
   labs(x = "Total Unsheltered", y = "Count")
 ```
+The graph is also positively skewed, with an outlier past 40000. It matches all the other population graphs so far.
 
 
 Converting the total counts to rates relative to population size should remove extreme outliers.
@@ -519,7 +522,7 @@ t <- ggplot(data = df_2017) +
   geom_boxplot(aes(y = total_homeless))
 grid.arrange(r, t, nrow = 1)
 ```
-
+The outliers in the total_homeless box plot are more extreme. The quartiles of that box plot are harder to see, and it has two outlier points that are much higher than anything else on the plot. While the rate_homeless box plot also as a few outliers, they and the box can all be easily distinguished.
 
 #### Data processing
 
@@ -541,6 +544,7 @@ We should note that the demographic variables (race, gender, age) are given as t
 $\rightarrow$ Use the `mutate` function to create new demographics variables in the data frame `df_2017` that are percentages of the total population.
 
 ```{r}
+# Convert all totals to percentages
 df_2017 <- df_2017 %>%
   mutate(
     percent_black = total_black / total_population,
@@ -564,7 +568,7 @@ df_2017 %>%
   colSums()
 ```
 
-548312 homeless, 359669 sheltered, 188643 unsheltered
+548312 people were homeless in 2017. 359669 of them were sheltered, and 188643 people were unsheltered.
 
 $\rightarrow$ What are the minimum, maximum, mean, and median number of total, sheltered, and unsheltered homeless in 2017?
 
@@ -598,8 +602,9 @@ df_2017 %>%
   select_if(is.numeric) %>%
   select(-"year") %>%
   cor(use = "pairwise.complete.obs") %>%
-  corrplot(tl.cex = 0.5, type = "lower")
+  corrplot(tl.cex = 0.3, type = "lower")
 ```
+Many of the strongest correlations are between various demographic variables. Rate_homeless has strong correlations with a few housing market variables.
 
 
 There are some variables that are highly correlated with the rate of homeless. Some are obvious, such as the rate of sheltered homeless. Other correlations show the existence of environmental variables, such as the share of overcrowded units, that are correlated with the rate of homeless.
@@ -632,6 +637,7 @@ M["rate_homeless",abs(M["rate_homeless",]) > 0.3 & is.na(M["rate_homeless",]) ==
   sort(decreasing = T)
 
 ```
+There are 13 variables with correlation coefficients greater than 0.3.
 
 
 $\rightarrow$ Make a pairs plot with a subset of the variables with the highest magnitude correlations. Select a small enough group so that you can see the panels. Do not include variables that you will not use as predictors (e.g. `rate_unsheltered`, any demographic totals)
@@ -648,8 +654,26 @@ $\rightarrow$ Create additional plots to further understand the data set. Descri
 
 
 ```{r}
-
+# Plot rate_homeless vs share_renters_2016
+ggplot(data = df_2017, mapping = aes(x = share_renters_2016, y = rate_homeless)) +
+  geom_point() +
+  labs(x = "Share Renters 2016", y = "Homeless Rate per 100000 people")
 ```
+Share_renters_2016 was the predictor with the highest correlation (0.48). The relationship between homeless rate and share_renters_2016 does not appear to be linear, since there are many points clustered near the bottom, and few higher up. An exponential relationship might fit the data better.
+
+```{r}
+ggplot(data = df_2017, mapping = aes(x = share_overcrowded_units_2016, y = rate_homeless)) +
+  geom_point() +
+  labs(x = "Share Overcrowded Units 2016", y = "Homeless Rate per 100000 people")
+```
+Share_overcrowded_units_2016 had the second highest coefficient (0.42). This relationship also does not appear linear. Many points are clustered on the bottom left of the graph.
+
+```{r}
+ggplot(data = df_2017, mapping = aes(x = total_Jan_precipitation, y = rate_homeless)) +
+  geom_point() +
+  labs(x = "Total January Precipitation", y = "Homeless Rate per 100000 people")
+```
+Total_Jan_precipitation had the third highest correlation (0.37). It also does not appear to have a linear relationship. It also has a larger spread of points, where there are many points with high precipitation.
 
 ## Model
 
@@ -672,12 +696,13 @@ To compare the different approaches, we will use a training and testing split of
 There are several variables that we do not want to include as predictors. We want to remove demographic totals, the year, the CoC number, and the other homeless rates that we are not predicting. You may have additional variables to remove to create the data set that contains only the response variable and the predictors that you want to use.
 
 ```{r}
-
+# Remove non predictor variables
 variable_remove = c("total_homeless", "total_sheltered", "total_unsheltered", "total_black", "total_latino_hispanic", "total_asian", "total_pacific_islander", "total_population_0_19", "total_population_65_plus", "total_female_population", "year", "coc_number", "total_population", "rate_unsheltered", "rate_sheltered")
 
 df_2017 <- df_2017 %>% 
   select(-all_of(variable_remove))
 
+# Display remaining variables
 names(df_2017)
 
 ```
@@ -714,8 +739,8 @@ df_test <- testing(split)
 $\rightarrow$ Check the sizes of the training and testing splits
 
 ```{r}
-skim(df_train)
-skim(df_test)
+skim_without_charts(df_train)
+skim_without_charts(df_test)
 ```
 
 There are 316 data entries in the training data and 58 in the testing data.
@@ -738,7 +763,7 @@ $\rightarrow$ Examine the summary of the fit. Which predictors have statisticall
 ```{r}
 summary(fit_all)
 ```
-The most significant variables based on the p-values are total_Jan_precipitation, proportion_one_person_households, migration_4_year_change, and log_median_rent.
+At the 0.05 level, share_overcrowded_units_2016 is significant. At the 0.01 level, share_HUD_units and proportion_one_person_households are also significant. At the 0.001 level, total_Jan_precipitation, proportion_one_person_households, migration_4_year_change, and log_median_rent are also significant. Though not a predictor, the demographic variable percent_black was also marked as significant at the 0.01 level.
 
 
 We should also do a qualitative assessment of the fit to the training data.
@@ -769,7 +794,7 @@ abline(0, 1)
 
 <br>
 
-The graph shows that the linear model with all the variables 
+The graph shows that the linear model with all the variables predicts the homeless rate fairly well for lower rates, though the model tends to overestimate the rates. At high actual homeless rates, there is one point that is predicted to be much lower.
 
 $\rightarrow$ Compute the RMSE
 
@@ -806,6 +831,7 @@ predict_10 <- predict(fit_10, df_test_10)
 plot(df_test_10$rate_homeless, predict_10, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
 abline(0, 1)
 ```
+<br>
 The residual graph is similar to the residual graph from the first seed. The points continue to be systemically structured in a curve. The actual vs predicted graph is also similar, except for the points with high actual homeless rates. The coefficients are different, and give different significant predictor variables. When the seed was 20, migration_4_year_change, log_median_rent, and total_Jan_precipitation had the smallest p-values. When the seed was 10, total_Jan_precipitation and proportion_one_person_households had the smallest p-values.
 
 ### Subset selection
@@ -874,6 +900,7 @@ $\rightarrow$ Plot the assessment measures vs. the number of predictors
 par(mfrow = c(2, 2))
 
 # Find number of variables for minimum cp
+# Sometimes this changes?
 ind_cp <- which.min(regfit_summary$cp)
 # Plot graph, title with number of variables
 plot(regfit_summary$cp, type = "b", xlab = "Number of Variables", ylab = "Cp", main = toString(ind_cp))
@@ -907,23 +934,36 @@ Each measure has a different number of variables. Minimizing the Cp has 13 varia
 $\rightarrow$ What are the coefficients of the best model according to different measures?
 
 ```{r}
+# Cp coefficients
 coef(regfit_all, ind_cp) %>%
-  round(2) %>%
-  data.frame()
-
-coef(regfit_all, ind_bic) %>%
-  round(2) %>%
-  data.frame()
-
-coef(regfit_all, ind_adjr2) %>%
-  round(2) %>%
-  data.frame()
-
-coef(regfit_all, ind_cv) %>%
   round(2) %>%
   data.frame()
 ```
 
+
+```{r}
+# BIC coefficients
+coef(regfit_all, ind_bic) %>%
+  round(2) %>%
+  data.frame()
+```
+The coefficients of the BIC model are close to those of the full linear model. The coefficient of share_HUD_units is the same in both cases: 2.04.
+
+```{r}
+# Adjusted r squared coefficients
+coef(regfit_all, ind_adjr2) %>%
+  round(2) %>%
+  data.frame()
+```
+The coefficients of the adjusted r squared model are similar to those of the full linear model. They all have the same signs and similar magnitudes.
+
+```{r}
+# Cv coefficients
+coef(regfit_all, ind_cv) %>%
+  round(2) %>%
+  data.frame()
+```
+Most of the coefficients are of the same sign and magnitude as the full model. The biggest difference is the demographic variable percent_black. In the full model, it had a coefficient of -39.48. Here, the coefficient is -20.89, which is around half. None of the predictor values had drastic differences.
 
 #### Assess the performance of the model on the testing data
 
@@ -955,7 +995,7 @@ rmse_cp <- (df_test$rate_homeless - pred_cp)^2 %>%
 rmse_cp
 ```
 
-Not all of the variables are significant. At the 0.05 level, high_housing_density, share_overcrowded_units_2016, suburban, share_HUD_units, migration_4_year_change, proportion_one_person_households, share_no_bachelors, percentage_excessive_drinking, and total_Jan_precipitation are significant. The model also includes demographic variables. In the actual vs predicted homeless rate model, the predicted values are higher than the actual values. The RMSE is 11.85. It's close to the RMSE of the full model.
+Not all of the variables are significant. At the 0.05 level, high_housing_density, share_overcrowded_units_2016, suburban, share_HUD_units, migration_4_year_change, proportion_one_person_households, share_no_bachelors, percentage_excessive_drinking, and total_Jan_precipitation are significant. The model also includes demographic variables. In the actual vs predicted homeless rate model, the predicted values are higher than the actual values. The RMSE is 11.85. It's close to the RMSE of the full model (11.46).
 
 
 ##### BIC Model Analysis
@@ -1072,7 +1112,7 @@ plot(lasso_cv)
 lasso_best_lam <- lasso_cv$lambda.1se
 lasso_best_lam
 ```
-
+From the graph, the minimum lambda is a model with 20-23 variables, and the one standard error lambda is a model with 7 variables. I chose to use the one standard error as my lambda: 2.59.
 
 $\rightarrow$ Fit the lasso with the best $\lambda$ using the function `glmnet`.
 
@@ -1087,7 +1127,7 @@ $\rightarrow$ Examine the coefficients. Which variables have non-zero coefficien
 coef(lasso_mod)
 ```
 
-The variables with non-zero coefficients are utility_costs, share_renters_2016, share_overcrowded_units_2016, and total_Jan_precipitation.
+The predictor variables with non-zero coefficients are utility_costs, share_renters_2016, share_overcrowded_units_2016, and total_Jan_precipitation. Demographic variables percent_pacific_island and percent_0_19 also have non-zero coefficients.
 
 #### Look at prediction error
 
@@ -1106,6 +1146,8 @@ $\rightarrow$ Make a scatter plot to compare the actual value and the predicted 
 plot(df_test$rate_homeless, lasso_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
 abline(0, 1)
 ```
+<br>
+The predictions are fairly accurate for lower homeless rates. The model tends to overestimate the rate for lower actual homeless rates. At higher actual homeless rates, the model underestimates the rate.
 
 $\rightarrow$ Compute the RMSE. How does it compare to the other models?
 
@@ -1115,7 +1157,7 @@ lasso_rmse <- (df_test$rate_homeless - lasso_predict)^2 %>%
   sqrt()
 lasso_rmse
 ```
-The RMSE is 8.97.
+The RMSE is 9.06.
 
 
 ### Ridge regression
@@ -1142,7 +1184,12 @@ ridge_cv <- cv.glmnet(x_train, y_train, alpha = 0)
 # Find best lambda
 ridge_best_lam <- ridge_cv$lambda.1se
 ridge_best_lam
+```
 
+The best lambda value is 68.74. I used the one standard error lambda for the ridge as well.
+
+
+```{r}
 # Fit model
 ridge_mod <- glmnet(x_train, y_train, alpha = 0, lambda = ridge_best_lam)
 
@@ -1152,7 +1199,12 @@ ridge_predict <- predict(ridge_mod, s = ridge_best_lam, newx = x_test)
 # Plot actual vs predicted values
 plot(df_test$rate_homeless, ridge_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
 abline(0, 1)
+```
+<br>
 
+The model overestimates the homeless rates for lower actual homeless rates, and underestimates it for higher actual homeless rates. A few of the points from the 10-20 range lie directly on the x = y line.
+
+```{r}
 # Calculate RMSE
 ridge_rmse <- (df_test$rate_homeless - ridge_predict)^2 %>%
   mean() %>%
@@ -1160,7 +1212,7 @@ ridge_rmse <- (df_test$rate_homeless - ridge_predict)^2 %>%
 ridge_rmse
 ```
 
-The RMSE is 9.02.
+The RMSE is 9.16. It is slightly greater, but close to the RMSE from the lasso model.
 
 
 ### XGBoost
@@ -1224,12 +1276,7 @@ xgb_grid <- grid_latin_hypercube(
 Create folds for cross-validation. 
 
 ```{r}
-
 folds <- vfold_cv(df_train)
-
-#Can also try using stratified sampling based on rate_homeless
-#folds <- vfold_cv(df_train, strata = rate_homeless)
-
 ```
 
 
@@ -1280,15 +1327,18 @@ Show the RMSE. Compare the result to the test RMSE for the other models.
 ```{r}
 collect_metrics(final_res)
 ```
+The RMSE is 9.15. It is similar to the RMSE from the lasso and ridge models.
 
 Plot the ACT scores and the prediction
 
 ```{r}
 
-plot(final_res$.predictions[[1]]$rate_homeless,final_res$.predictions[[1]]$.pred, xlab = "Homeless rate", ylab = "Predicted homeless rate")
+plot(final_res$.predictions[[1]]$rate_homeless,final_res$.predictions[[1]]$.pred, xlab = "Actual Homeless rate", ylab = "Predicted homeless rate")
 abline(0, 1)
 
 ```
+<br>
+The model is fairly accurate at predicting most of the actual homeless rates. The points are evenly divided around the x = y line. Only two points at higher homeless rates are off: one much higher than the line, and one much lower.
 
 
 #### Relative importance of predictors
@@ -1303,7 +1353,7 @@ final_xgb %>%
   vip(geom = "col")
 
 ```
-
+The most important variable is share_renters_2016, fllowed by total_Jan_precipitation and share_HUD_units.
 
 
 ### Compare models
@@ -1319,10 +1369,16 @@ You used several methods to construct a model
 Compare the performance of the models. 
 
 The full linear regression model has three most significant variables: log_median_rent, migration_4_year_change, and total_Jan_precipitation. The plot of the residuals has a systemic structure, where many of the points are clustered on the left in an almost parabolic shape. In the plot of actual vs predicted homeless rate, the lower rates are pretty evenly distributed around the x = y line. At higher actual homeless rates, the predictions are more off. The RMSE is 11.46.
+
 The different linear regression subset selections have slightly different values for the RMSE, and similar actual vs predicted homeless rate graphs. The Cp model includes 15 variables, though not all of them are significant. The RMSE is 11.71, which is slightly higher than the RMSE of the full linear model. The BIC model has an RMSE of 9.82, and includes 10 significant variables. The adjusted r squared model has an RMSE of 11.25 and 20 variables. Not all of the variables in this model are significant. The cross validation model has 3 significant variables and an RMSE of 9.02, which the lowest RMSE from all the linear models. The three variables included in the CV model are share_overcrowded_units_2016, proportion_one_person_households, and total_Jan_precipitation. All three of these variables are included and significant in all the other subset selections.
 
 In the lasso model, 6 of the variables have non-zero coefficients. The predicted vs actual homeless rate plot looks similar to those from the all the linear regression models. The predicted values are close for lower homeless rates, and off for higher ones. The RMSE is 9.06. It's lower than the RMSE from the full linear regression model, and close to the cross validation subset.
 
+In the ridge model, the RMSE is 9.16. Its predicted vs actual homeless rate plot looks similar to those of the linear and lasso regression models, though it has some points on the x = y line, unlike those models.
+
+The tree model has an RMSE of 9.15, similar to the CV subset, lasso, and ridge models. The most important variables in this model are share_renters_2016, total_Jan_precipitation, share_HUD_units, proportion_one_person_households, and rental_vacancy_rate.
+
+Overall, the RMSEs of the different models range from 8.80 to 11.46. Most of the models have RMSE values around 9, including the BIC subset, lasso, ridge, and tree models. There were two variables included in every model: total_Jan_precipitation and share_overcrowded_units_2016. Total_Jan_precipitation was significant in every linear model subset, and the second most important variable to the tree model. Share_overcrowded_units_2016 was also significant in all the linear models, and was the seventh most important predictor in the tree model. Other variables appeared only in a few models. Share_renters_2016 was the most important variable in the tree model, and was also included in the lasso model, but not in any of the linear model selections. In all the linear models, share_HUD_units, log_median_rent, proportion_one_person_households, and migration_4_year_change were significant. Share_HUD_units and proportion_one_person_households were also included in the tree model, but not the lasso model. The lasso model and tree model included utility_costs, which was not significant in any of the linear subset selections.
 
 ## Additional step
 
@@ -1330,7 +1386,7 @@ In addition to completing the above analyses, you should perform any revisions t
 
 ### Question
 
-I chose to look at how the location may have an effect on the most significant variables. The original large data set has a variable for the four census regions (northeast, midwest, south, west).
+I chose to look at how the location may have an effect on the most significant variables. The original large data set has a variable for the four census regions (northeast, midwest, south, west), labelled from 1 to 4 in the same order as the US Census. I did a lasso regression analysis with the combination of the census region and the four predictor variables with non-zero coefficients from my original analysis. I chose to do a lasso analysis because it had the lowest RMSE from my initial analysis, though that has changed.
 
 ### Data Re-organization
 
@@ -1346,12 +1402,15 @@ var_region <- c("year",
   
   "census_region"
   )
+
+# Filter original data set to data from variable list and 2017
 df_region <- df %>%
   select(all_of(var_region)) %>%
   filter(year == 2017)
 ```
 
 ```{r}
+# Rename variables to match rest of analysis
 df_region <- df_region %>% 
    rename(
 total_homeless = "pit_tot_hless_pit_hud",
@@ -1362,11 +1421,13 @@ share_overcrowded_units_2016 = "hou_mkt_ovrcrowd_acs5yr_2017",
 utility_costs  = "hou_mkt_utility_xt",
 )
 
+# Get rid of entries with missing total homeless entries
 df_region <- df_region %>%
   filter(is.na(total_homeless) == FALSE)
 ```
 
 ```{r}
+# Convert from total to rate, and change census_region to factor
 df_region <- df_region %>%
   mutate(rate_homeless = total_homeless / (total_population / 10000)) %>%
   mutate(census_region = as.factor(census_region))
@@ -1375,6 +1436,7 @@ df_region <- df_region %>%
 ```{r}
 set.seed(20)
 
+# Split data again
 split_region <- initial_split(df_region, prop = 0.85, strata = rate_homeless)
 
 train_region <- training(split_region)
@@ -1385,6 +1447,8 @@ test_region <- testing(split_region)
 
 ### Analysis
 ```{r}
+# Set up model matrix
+# Use combination of predictor variables and census region
 x_train_region <- model.matrix(rate_homeless ~ utility_costs*census_region + share_renters_2016*census_region + share_overcrowded_units_2016*census_region + total_Jan_precipitation*census_region, train_region)[,-1]
 y_train_region <- train_region$rate_homeless
 ```
@@ -1396,21 +1460,23 @@ lasso_region_cv <- cv.glmnet(x_train_region, y_train_region, alpha = 1)
 ```{r}
 plot(lasso_region_cv)
 ```
+<br>
 The minimum lambda has seven variables and the one standard error lambda has three variables.
 
 ```{r}
 lasso_region_best_lam <- lasso_region_cv$lambda.1se
 lasso_region_best_lam
 ```
+The best lambda value (using one standard error) is 4.69.
 ```{r}
 lasso_region_mod <- glmnet(x_train_region, y_train_region, alpha = 1, lambda = lasso_region_best_lam)
-```
 
-```{r}
 coef(lasso_region_mod)
 ```
+The variables with non-zero coefficients are share_renters_2016, the combination of share_renters_2016 and census_region4, and the combination of total_Jan_precipitation and census_region4.
 
 ```{r}
+# Predict for test data
 x_test_region <- model.matrix(rate_homeless ~ utility_costs*census_region + share_renters_2016*census_region + share_overcrowded_units_2016*census_region + total_Jan_precipitation*census_region, test_region)[,-1]
 lasso_region_predict <- predict(lasso_region_mod, s = lasso_region_best_lam, newx = x_test_region)
 ```
@@ -1419,6 +1485,9 @@ lasso_region_predict <- predict(lasso_region_mod, s = lasso_region_best_lam, new
 plot(test_region$rate_homeless, lasso_region_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
 abline(0, 1)
 ```
+<br>
+
+The model is consistent with the initial lasso analysis. It overestimates homeless rates for lower rates, and underestimates it at higher rates.
 
 ```{r}
 lasso_region_rmse <- (test_region$rate_homeless - lasso_region_predict)^2 %>%
@@ -1427,9 +1496,20 @@ lasso_region_rmse <- (test_region$rate_homeless - lasso_region_predict)^2 %>%
 lasso_region_rmse
 ```
 
+The RMSE is 9.35. It is similar to most of the RMSE values from the other models.
+
+### Discussion
+
+The only census region that had a non-zero coefficient in combination with another variable was census region 4, which is west. This region includes the entire west half of the continental US, Alaska, and Hawaii. Of the four variables, two of them (share_renters_2016 and total_Jan_precipitation) were significant with region 4. Total_Jan_precipitation did not have a coefficient on its own.
+
+From these results, share_renters_2016 works as a predictor for homeless rates generally, and share_renters_2016 and total_Jan_precipitation can predict homeless rates in the western US.
 
 ## Conclusion
 
 After completing your analyses, you will make your conclusions and communicate your results. Consult Canvas for further directions.
 
+Based on the RMSE values, the best model for predicting homeless rates is cross-validation as the measure for best subset selection from a linear model, because it had the lowest RMSE of 8.79. The most important variables for predicting homeless rates are total January precipitation and share of overcrowded housing units. Both of these variables were included and significant in every model used. 
 
+One limitation of the analysis has to do with the data. The data set has a small number of data points, but includes many variables for possible predictors. This makes it easier to possibly overfit the data, and fit the noise instead of the more general trend. Since we also split the data into training and testing sets, that also lessened the number of data points with which to perform the analyses. The predictor variables could also be related to each other, which would not be very apparent in an analysis between one predictor and homeless rate. In my additional step, I explored one possible relationship between region and homeless rate, using only the predictors generated by my lasso analysis. From this analysis, only census region 4 (west) had any affect on the homeless rate. It stands to reason that homeless rate in the west can be accurately predicted by the share of renters and total January precipitation. These results are consistent with the results of the larger analysis, since total January precipitation seems to be a very important predictor.
+
+Another limitation of the analysis could come from the initial data set. While much of the data comes from the US Census and is reasonably reliable, the HUD presentation notes that some of the data were estimates, even for variables such as homeless rate. 
