@@ -1,0 +1,24 @@
+---
+title: "Multiple Linear Regression with Interaction"
+author: "Haley Uyeunten"
+date: '2022-04-21'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+cars <- read_csv("mtcars12.csv")
+```
+```{r}
+cars <- cars %>%
+  mutate(am = as.character(am))
+```
+
+
+```{r}
+fit_cars <- lm(mpg ~ wt * am, data = cars)
+summary(fit_cars)
+```
+
+1. The estimated coefficients are 29.93 for the slope, -3.44 for weight, 12.60 for transmission, and -4.25 for the combined weight and transmission.
+2. Yes, the difference is significant. The p-value for the interaction is 0.00255, which is less than 0.05.

@@ -1,0 +1,35 @@
+---
+title: "Multiple Logistic Regression"
+author: "Haley Uyeunten"
+date: '2022-05-31'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+```
+
+```{r}
+biopsy <- read_csv("biopsy20.csv")
+
+biopsy <- biopsy %>%
+  mutate(class = as.factor(class),
+         V1_sq = V1^2,
+         V4_sq = V4^2)
+```
+```{r}
+log_reg <- logistic_reg() %>%
+  set_engine("glm")
+
+log_reg_wf <- workflow() %>%
+  add_formula(class ~ V1 + V4 + V1_sq + V4_sq) %>%
+  add_model(log_reg)
+
+log_reg_fit <- log_reg_wf %>%
+  fit(biopsy)
+
+tidy(log_reg_fit)
+```
+1. The estimated coefficients that are significant are V4 and $V1^2$.
+2. The decision boundary is quadratic because $V1^2$ has a significant coefficient.

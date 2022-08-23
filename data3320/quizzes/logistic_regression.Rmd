@@ -1,0 +1,38 @@
+---
+title: "Logistic Regression"
+author: "Haley Uyeunten"
+date: '2022-05-30'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+```
+
+```{r}
+biopsy <- read_csv("biopsy12.csv")
+
+biopsy <- biopsy %>%
+  mutate(class = as.factor(class))
+```
+
+
+
+```{r}
+log_reg <- logistic_reg() %>%
+  set_engine("glm")
+
+log_reg_wf <- workflow() %>%
+  add_formula(class ~ V4) %>%
+  add_model(log_reg)
+
+log_reg_fit <- log_reg_wf %>%
+  fit(biopsy)
+
+tidy(log_reg_fit)
+```
+1. The estimated constant coefficient is -3.45.
+2. The estimated coefficient on V4 is 0.89.
+3. Yes, the V4 coefficient is significant, because the p-value is much smaller than 0.05.
+4. The maximum rate of change of the probability is 0.22.

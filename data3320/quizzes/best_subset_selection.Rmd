@@ -1,0 +1,27 @@
+---
+title: "Best Subset Selection Multiple Linear Regression"
+author: "Haley Uyeunten"
+date: '2022-04-21'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(leaps)
+cars <- read_csv("mtcars7.csv")
+```
+
+```{r}
+regfit_cars <- regsubsets(mpg ~ ., data = cars, nvmax = 10)
+summary <- summary(regfit_cars)
+```
+
+```{r}
+plot(summary$bic, type = "b", xlab = "Number of Variables", ylab = "BIC")
+```
+
+```{r}
+summary$outmat
+```
+
+The model that minimizes the BIC has four predictors. They are wt, vs, am, and carb.

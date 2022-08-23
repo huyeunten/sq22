@@ -1,0 +1,58 @@
+---
+title: "Lasso Regression"
+author: "Haley Uyeunten"
+date: '2022-05-12'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(glmnet)
+library(rsample)
+```
+
+
+```{r}
+cars <- read.csv("mtcars3.csv")
+cars <- cars %>%
+  mutate(am = as.factor(am),
+         vs = as.factor(vs))
+```
+
+```{r}
+set.seed(10)
+
+split <- initial_split(cars, prop = 0.8)
+
+train <- training(split)
+test <- testing(split)
+```
+
+```{r}
+x_train <- model.matrix(mpg ~ ., train)[,-1]
+y_train <- train$mpg
+
+lasso_cv <- cv.glmnet(x_train, y_train, alpha = 1)
+lasso_best_lam <- lasso_cv$lambda.1se
+lasso_best_lam
+```
+
+The best value for lambda is 1.81.
+
+```{r}
+lasso_mod <- glmnet(x_train, y_train, alpha = 1, lambda = lasso_best_lam)
+coef(lasso_mod)
+```
+
+1. The variables with non-zero coefficients are number of cylinders (cyl), displacement (disp), horsepower (hp), rear axle ratio (drat), weight (wt), and transmission (am).
+
+```{r}
+x_test <- model.matrix(mpg ~ ., test)[,-1]
+lasso_predict <- predict(lasso_mod, s = lasso_best_lam, newx = x_test)
+
+lasso_rmse <- (test$mpg - lasso_predict)^2 %>%
+  mean() %>%
+  sqrt()
+lasso_rmse
+```
+2. The RMSE is 3.96.

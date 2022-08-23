@@ -1,0 +1,66 @@
+---
+title: "Logistic Regression Accuracy"
+author: "Haley Uyeunten"
+date: '2022-05-30'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(rsample)
+```
+
+```{r}
+biopsy <- read_csv("biopsy16.csv")
+
+biopsy <- biopsy %>%
+  mutate(class = as.factor(class))
+```
+
+```{r}
+set.seed(20)
+split <- initial_split(biopsy, prop = 0.8, strata = class)
+
+df_train <- training(split)
+df_test <- testing(split)
+```
+
+
+```{r}
+log_reg <- logistic_reg() %>%
+  set_engine("glm")
+
+log_reg_wf <- workflow() %>%
+  add_formula(class ~ V4) %>%
+  add_model(log_reg)
+
+log_reg_fit <- log_reg_wf %>%
+  fit(df_train)
+
+log_reg_predict <- log_reg_fit %>%
+  predict(new_data = df_test) %>%
+  bind_cols(df_test %>% select(class))
+```
+
+
+```{r}
+log_reg_predict %>%
+  conf_mat(class, .pred_class) %>%
+  pluck(1) %>%
+  as_tibble() %>%
+  ggplot(aes(Prediction, Truth, alpha = n)) +
+  geom_tile(show.legend = FALSE) +
+  geom_text(aes(label = n), color = "purple", alpha = 1, size = 10)
+```
+<br>
+1. The model correctly predicted 86 samples as benign and 35 as malignant. It incorrectly predicted 6 benign samples as malignant, and 14 malignant samples as benign.
+
+```{r}
+log_reg_predict %>%
+  metrics(class, .pred_class) %>%
+  select(-.estimator) %>%
+  filter(.metric == "accuracy") %>%
+  mutate(.estimate = round(.estimate, 3))
+```
+2. The prediction accuracy is 85.8%.

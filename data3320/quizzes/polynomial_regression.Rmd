@@ -1,0 +1,42 @@
+---
+title: "Polynomial Regression"
+author: "Haley Uyeunten"
+date: '2022-04-22'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+cars <- read_csv("mtcars16.csv")
+```
+```{r}
+fit_1 <- lm(mpg ~ disp, data = cars)
+
+plot(fit_1,1)
+
+summary(fit_1)
+```
+```{r}
+fit_2 <- lm(mpg ~ poly(disp, 2, raw = TRUE), data = cars)
+
+plot(fit_2,1)
+
+summary(fit_2)
+```
+```{r}
+fit_3 <- lm(mpg ~ poly(disp, 3, raw = TRUE), data = cars)
+
+plot(fit_3,1)
+
+summary(fit_3)
+```
+```{r}
+fit_4 <- lm(mpg ~ poly(disp, 4, raw = TRUE), data = cars)
+
+plot(fit_4,1)
+
+summary(fit_4)
+```
+
+Based on the model coefficients, the best model is the linear one. It has a p-value of 7.35e-9. The best model based on the residual plots is the fourth power. The best model overall is the third power model because it has the most significant coefficients.
+

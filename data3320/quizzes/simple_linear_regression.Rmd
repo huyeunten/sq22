@@ -1,0 +1,21 @@
+---
+title: "Simple Linear Regression Quiz"
+author: "Haley Uyeunten"
+date: '2022-04-21'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+cars <- read_csv("mtcars5.csv")
+```
+
+```{r}
+fit_cars <- lm(mpg ~ wt, data = cars)
+summary(fit_cars)$coefficients
+```
+
+
+1. The estimated intercept coefficient is 35.91.
+2. The estimated slope coefficient is -4.92.
+3. Yes, the estimated slope coefficient is significant because the p-value is 6.04e-10, which is smaller than 0.05.

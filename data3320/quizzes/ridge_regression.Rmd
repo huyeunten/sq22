@@ -1,0 +1,54 @@
+---
+title: "Ridge Regression"
+author: "Haley Uyeunten"
+date: '2022-05-12'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(glmnet)
+library(rsample)
+```
+
+```{r}
+cars <- read.csv("mtcars6.csv")
+cars <- cars %>%
+  mutate(am = as.factor(am),
+         vs = as.factor(vs))
+```
+
+```{r}
+set.seed(10)
+
+split <- initial_split(cars, prop = 0.8)
+
+train <- training(split)
+test <- testing(split)
+```
+
+```{r}
+x_train <- model.matrix(mpg ~ ., train)[,-1]
+y_train <- train$mpg
+
+ridge_cv <- cv.glmnet(x_train, y_train, alpha = 0)
+ridge_best_lam <- ridge_cv$lambda.1se
+ridge_best_lam
+```
+
+1. The best value for lambda is 12.81.
+
+```{r}
+ridge_mod <- glmnet(x_train, y_train, alpha = 0, lambda = ridge_best_lam)
+
+x_test <- model.matrix(mpg ~ ., test)[,-1]
+ridge_predict <- predict(ridge_mod, s = ridge_best_lam, newx = x_test)
+
+ridge_rmse <- (test$mpg - ridge_predict)^2 %>%
+  mean() %>%
+  sqrt()
+ridge_rmse
+```
+2. The RMSE is 3.73.
+
+

@@ -1,0 +1,22 @@
+---
+title: "Scatter Plot Regression Quiz"
+author: "Haley Uyeunten"
+date: '2022-04-21'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+cars <- read_csv("mtcars11.csv")
+```
+
+```{r}
+ggplot(data = cars, mapping = aes(x = wt, y = mpg)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  labs(x = "Weight (1000 lbs)", y = "Miles/(US) Gallon")
+```
+

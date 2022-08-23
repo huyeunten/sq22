@@ -772,6 +772,7 @@ $\rightarrow$ Plot the residuals to look for systematic patterns of residuals th
 
 ```{r}
 plot(fit_all, 1)
+title(main = "Residuals vs Fitted")
 ```
 
 The residual model has a systemic pattern where many more data points are clustered on the left. The linear regression with all variables is not the best model to fit the data.
@@ -789,6 +790,7 @@ $\rightarrow$ Make a scatter plot to compare the actual value and the predicted 
 
 ```{r}
 plot(df_test$rate_homeless, lm_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+title(main = "Actual vs Predicted Homeless Rates")
 abline(0, 1)
 ```
 
@@ -1068,6 +1070,7 @@ pred_cv <- predict(lm_cv, df_test)
 
 # Plot measured vs predicted values for rate_homeless
 plot(df_test$rate_homeless, pred_cv, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+title(main = "Actual vs Predicted Homeless Rate")
 # Add x = y line
 abline(0, 1) 
 
@@ -1144,6 +1147,7 @@ $\rightarrow$ Make a scatter plot to compare the actual value and the predicted 
 
 ```{r}
 plot(df_test$rate_homeless, lasso_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+title(main = "Actual vs Predicted Homeless Rates")
 abline(0, 1)
 ```
 <br>
@@ -1198,6 +1202,7 @@ ridge_predict <- predict(ridge_mod, s = ridge_best_lam, newx = x_test)
 
 # Plot actual vs predicted values
 plot(df_test$rate_homeless, ridge_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+title(main = "Actual vs Predicted Homeless Rate")
 abline(0, 1)
 ```
 <br>
@@ -1334,6 +1339,7 @@ Plot the ACT scores and the prediction
 ```{r}
 
 plot(final_res$.predictions[[1]]$rate_homeless,final_res$.predictions[[1]]$.pred, xlab = "Actual Homeless rate", ylab = "Predicted homeless rate")
+title(main = "Actual vs Predicted Homeless Rate")
 abline(0, 1)
 
 ```
@@ -1483,6 +1489,7 @@ lasso_region_predict <- predict(lasso_region_mod, s = lasso_region_best_lam, new
 
 ```{r}
 plot(test_region$rate_homeless, lasso_region_predict, xlab = "Actual Homeless Rate", ylab = "Predicted Homeless Rate")
+title(main = "Actual vs Predicted Homeless Rate")
 abline(0, 1)
 ```
 <br>
